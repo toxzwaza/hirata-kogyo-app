@@ -10,6 +10,72 @@ const props = defineProps({
     defectTypes: Array,
 });
 
+// 得意先リスト（重複なし）
+const clients = computed(() => {
+    const clientMap = new Map();
+    props.drawings.forEach(drawing => {
+        if (drawing.client && !clientMap.has(drawing.client.id)) {
+            clientMap.set(drawing.client.id, drawing.client);
+        }
+    });
+    return Array.from(clientMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+});
+
+// フィルター用のリアクティブ変数
+const clientFilter = ref('');
+const drawingNumberFilter = ref('');
+
+// フィルターされた図番リスト
+const filteredDrawings = computed(() => {
+    let filtered = props.drawings;
+    
+    // 得意先でフィルター
+    if (clientFilter.value) {
+        filtered = filtered.filter(d => d.client && d.client.id === parseInt(clientFilter.value));
+    }
+    
+    // 図番でフィルター（部分一致）
+    if (drawingNumberFilter.value) {
+        const searchText = drawingNumberFilter.value.toLowerCase();
+        filtered = filtered.filter(d => 
+            d.drawing_number.toLowerCase().includes(searchText)
+        );
+    }
+    
+    return filtered;
+});
+
+// 図番入力で選択された場合の処理
+const onDrawingNumberInput = (event) => {
+    const inputValue = event.target.value.trim();
+    if (!inputValue) {
+        form.drawing_id = '';
+        form.work_method_id = '';
+        return;
+    }
+    
+    // 完全一致する図番を探す
+    const matchedDrawing = filteredDrawings.value.find(d => d.drawing_number === inputValue);
+    if (matchedDrawing) {
+        form.drawing_id = matchedDrawing.id;
+        form.work_method_id = ''; // 図番が変わったら作業方法をリセット
+        console.log('Drawing selected:', matchedDrawing.id, matchedDrawing.drawing_number, 'work_rates:', matchedDrawing.work_rates);
+    } else {
+        // 完全一致しない場合は、部分一致で最初に見つかったものを設定
+        const partialMatch = filteredDrawings.value.find(d => 
+            d.drawing_number.toLowerCase().startsWith(inputValue.toLowerCase())
+        );
+        if (partialMatch && filteredDrawings.value.length === 1) {
+            form.drawing_id = partialMatch.id;
+            form.work_method_id = ''; // 図番が変わったら作業方法をリセット
+            console.log('Drawing selected (partial match):', partialMatch.id, partialMatch.drawing_number, 'work_rates:', partialMatch.work_rates);
+        } else {
+            form.drawing_id = '';
+            form.work_method_id = '';
+        }
+    }
+};
+
 // 現在時刻をデフォルト値として設定
 const now = new Date();
 const formatDateTimeLocal = (date) => {
@@ -56,6 +122,83 @@ const isDefectQuantityValid = computed(() => {
     return totalDefectQuantity.value === form.quantity_ng;
 });
 
+// 選択された図番に関連する作業方法のみをフィルター
+const availableWorkMethods = computed(() => {
+    if (!form.drawing_id) {
+        return [];
+    }
+    
+    // drawing_idを数値に変換して比較
+    const drawingId = typeof form.drawing_id === 'string' ? parseInt(form.drawing_id) : form.drawing_id;
+    
+    const selectedDrawing = props.drawings.find(d => {
+        const dId = typeof d.id === 'string' ? parseInt(d.id) : d.id;
+        return dId === drawingId;
+    });
+    
+    if (!selectedDrawing) {
+        console.log('Drawing not found:', drawingId, 'Available drawings:', props.drawings.map(d => ({ id: d.id, drawing_number: d.drawing_number })));
+        return [];
+    }
+    
+    console.log('Selected drawing:', selectedDrawing);
+    console.log('Drawing keys:', Object.keys(selectedDrawing));
+    console.log('Drawing has workRates:', 'workRates' in selectedDrawing);
+    console.log('Drawing has work_rates:', 'work_rates' in selectedDrawing);
+    
+    // work_ratesまたはworkRatesのどちらかを使用（Laravelのリレーション名の変換に対応）
+    // Inertiaでは通常キャメルケースのまま送信される
+    const workRates = selectedDrawing.workRates || selectedDrawing.work_rates || [];
+    
+    console.log('workRates:', workRates);
+    console.log('workRates type:', typeof workRates);
+    console.log('workRates is array:', Array.isArray(workRates));
+    console.log('workRates length:', workRates?.length);
+    
+    // もしworkRatesが読み込まれていない場合、全drawingsを確認
+    if (!workRates || workRates.length === 0) {
+        console.log('Checking all drawings for workRates...');
+        props.drawings.forEach((d, index) => {
+            if (index < 3) { // 最初の3つだけ確認
+                console.log(`Drawing ${index}:`, {
+                    id: d.id,
+                    drawing_number: d.drawing_number,
+                    hasWorkRates: 'workRates' in d,
+                    hasWork_rates: 'work_rates' in d,
+                    workRates: d.workRates || d.work_rates || 'not found'
+                });
+            }
+        });
+    }
+    
+    if (!workRates || workRates.length === 0) {
+        console.log('No work_rates found for drawing:', selectedDrawing.id);
+        console.log('Full drawing object:', JSON.stringify(selectedDrawing, null, 2));
+        return [];
+    }
+    
+    // work_ratesからwork_method_idを取得（重複を除去）
+    const workMethodIds = new Set();
+    workRates.forEach(rate => {
+        if (rate.work_method_id) {
+            const methodId = typeof rate.work_method_id === 'string' ? parseInt(rate.work_method_id) : rate.work_method_id;
+            workMethodIds.add(methodId);
+        }
+    });
+    
+    console.log('Work method IDs from work_rates:', Array.from(workMethodIds));
+    console.log('Available work methods:', props.workMethods.map(m => ({ id: m.id, name: m.name })));
+    
+    // 対応する作業方法を返す
+    const filtered = props.workMethods.filter(method => {
+        const methodId = typeof method.id === 'string' ? parseInt(method.id) : method.id;
+        return workMethodIds.has(methodId);
+    });
+    
+    console.log('Filtered work methods:', filtered);
+    return filtered;
+});
+
 const submit = () => {
     form.post(route('staff.work-records.store'));
 };
@@ -75,48 +218,84 @@ const submit = () => {
         </div>
 
         <form @submit.prevent="submit" class="space-y-4">
-            <!-- 図番 -->
+            <!-- 図番選択（2カラム：得意先と図番入力） -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">図番 *</label>
-                <select
-                    v-model="form.drawing_id"
-                    class="w-full h-12 text-base rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
-                    :class="{ 'border-red-500': form.errors.drawing_id }"
-                >
-                    <option value="">選択してください</option>
-                    <option
-                        v-for="drawing in drawings"
-                        :key="drawing.id"
-                        :value="drawing.id"
-                    >
-                        {{ drawing.drawing_number }} - {{ drawing.product_name }} ({{ drawing.client.name }})
-                    </option>
-                </select>
+                <div class="grid grid-cols-2 gap-2">
+                    <!-- 得意先フィルター（左） -->
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">得意先</label>
+                                    <select
+                                        v-model="clientFilter"
+                                        class="w-full h-12 text-base rounded-lg border-gray-300 shadow-sm"
+                                        @change="drawingNumberFilter = ''; form.drawing_id = ''; form.work_method_id = ''"
+                                    >
+                            <option value="">すべて</option>
+                            <option
+                                v-for="client in clients"
+                                :key="client.id"
+                                :value="client.id"
+                            >
+                                {{ client.name }}
+                            </option>
+                        </select>
+                    </div>
+                    
+                    <!-- 図番入力（右、datalist使用） -->
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">図番</label>
+                        <input
+                            v-model="drawingNumberFilter"
+                            type="text"
+                            list="drawing-number-list"
+                            placeholder="図番を入力"
+                            class="w-full h-12 text-base rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+                            :class="{ 'border-red-500': form.errors.drawing_id }"
+                            @input="onDrawingNumberInput"
+                        />
+                        <datalist id="drawing-number-list">
+                            <option
+                                v-for="drawing in filteredDrawings"
+                                :key="drawing.id"
+                                :value="drawing.drawing_number"
+                            >
+                                {{ drawing.drawing_number }} - {{ drawing.product_name }} ({{ drawing.client.name }})
+                            </option>
+                        </datalist>
+                    </div>
+                </div>
                 <p v-if="form.errors.drawing_id" class="mt-1 text-sm text-red-600">
                     {{ form.errors.drawing_id }}
                 </p>
             </div>
 
-            <!-- 作業方法 -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">作業方法 *</label>
-                <select
-                    v-model="form.work_method_id"
-                    class="w-full h-12 text-base rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
-                    :class="{ 'border-red-500': form.errors.work_method_id }"
-                >
-                    <option value="">選択してください</option>
-                    <option
-                        v-for="method in workMethods"
-                        :key="method.id"
-                        :value="method.id"
+            <!-- スタッフと作業方法（2カラム） -->
+            <div class="grid grid-cols-2 gap-4">
+                <!-- 作業方法 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">作業方法 *</label>
+                    <select
+                        v-model="form.work_method_id"
+                        class="w-full h-12 text-base rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+                        :class="{ 'border-red-500': form.errors.work_method_id }"
+                        :disabled="!form.drawing_id"
                     >
-                        {{ method.name }}
-                    </option>
-                </select>
-                <p v-if="form.errors.work_method_id" class="mt-1 text-sm text-red-600">
-                    {{ form.errors.work_method_id }}
-                </p>
+                        <option value="">{{ form.drawing_id ? '選択してください' : '図番を選択してください' }}</option>
+                        <option
+                            v-for="method in availableWorkMethods"
+                            :key="method.id"
+                            :value="method.id"
+                        >
+                            {{ method.name }}
+                        </option>
+                    </select>
+                    <p v-if="form.errors.work_method_id" class="mt-1 text-sm text-red-600">
+                        {{ form.errors.work_method_id }}
+                    </p>
+                    <p v-if="!form.drawing_id" class="mt-1 text-xs text-gray-500">
+                        図番を選択すると作業方法が表示されます
+                    </p>
+                </div>
             </div>
 
             <!-- 作業開始時刻 -->

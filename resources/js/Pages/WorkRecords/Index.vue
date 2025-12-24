@@ -1,15 +1,58 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
-defineProps({
+const props = defineProps({
     workRecords: Object,
     staffList: Array,
     drawings: Array,
     workMethods: Array,
     filters: Object,
 });
+
+// フィルター用のリアクティブ変数
+const drawingNumberFilter = ref('');
+
+// 図番でフィルターされた図番リスト
+const filteredDrawings = computed(() => {
+    let filtered = props.drawings;
+    
+    // 図番でフィルター（部分一致）
+    if (drawingNumberFilter.value) {
+        const searchText = drawingNumberFilter.value.toLowerCase();
+        filtered = filtered.filter(d => 
+            d.drawing_number.toLowerCase().includes(searchText)
+        );
+    }
+    
+    return filtered;
+});
+
+// 図番入力で選択された場合の処理
+const onDrawingNumberInput = (event) => {
+    const inputValue = event.target.value.trim();
+    if (!inputValue) {
+        form.value.drawing_id = null;
+        return;
+    }
+    
+    // 完全一致する図番を探す
+    const matchedDrawing = filteredDrawings.value.find(d => d.drawing_number === inputValue);
+    if (matchedDrawing) {
+        form.value.drawing_id = matchedDrawing.id;
+    } else {
+        // 完全一致しない場合は、部分一致で最初に見つかったものを設定
+        const partialMatch = filteredDrawings.value.find(d => 
+            d.drawing_number.toLowerCase().startsWith(inputValue.toLowerCase())
+        );
+        if (partialMatch && filteredDrawings.value.length === 1) {
+            form.value.drawing_id = partialMatch.id;
+        } else {
+            form.value.drawing_id = null;
+        }
+    }
+};
 
 const form = ref({
     staff_id: null,
@@ -34,6 +77,7 @@ const clearFilters = () => {
         date_from: null,
         date_to: null,
     };
+    drawingNumberFilter.value = '';
     router.get(route('work-records.index'));
 };
 
@@ -87,19 +131,23 @@ const formatNumber = (num) => {
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">図番</label>
-                            <select
-                                v-model="form.drawing_id"
+                            <input
+                                v-model="drawingNumberFilter"
+                                type="text"
+                                list="drawing-number-list-index"
+                                placeholder="図番を入力"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                            >
-                                <option :value="null">すべて</option>
+                                @input="onDrawingNumberInput"
+                            />
+                            <datalist id="drawing-number-list-index">
                                 <option
-                                    v-for="drawing in drawings"
+                                    v-for="drawing in filteredDrawings"
                                     :key="drawing.id"
-                                    :value="drawing.id"
+                                    :value="drawing.drawing_number"
                                 >
-                                    {{ drawing.drawing_number }} ({{ drawing.client.name }})
+                                    {{ drawing.drawing_number }} - {{ drawing.product_name }} ({{ drawing.client.name }})
                                 </option>
-                            </select>
+                            </datalist>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">作業方法</label>

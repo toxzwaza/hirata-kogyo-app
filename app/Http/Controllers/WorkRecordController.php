@@ -12,6 +12,7 @@ use App\Models\DefectType;
 use App\Models\WorkRate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
@@ -83,7 +84,9 @@ class WorkRecordController extends Controller
             ->orderBy('name')
             ->get();
         $drawings = Drawing::where('active_flag', true)
-            ->with('client')
+            ->with(['client', 'workRates' => function($query) {
+                $query->orderBy('effective_from', 'desc');
+            }, 'workRates.workMethod'])
             ->orderBy('drawing_number')
             ->get();
         $workMethods = WorkMethod::orderBy('name')->get();
@@ -106,9 +109,18 @@ class WorkRecordController extends Controller
         $currentStaff = auth()->user();
         
         $drawings = Drawing::where('active_flag', true)
-            ->with('client')
+            ->with(['client', 'workRates' => function($query) {
+                $query->orderBy('effective_from', 'desc');
+            }, 'workRates.workMethod'])
             ->orderBy('drawing_number')
             ->get();
+        
+        // デバッグ用：最初の図番のworkRatesを確認
+        if ($drawings->isNotEmpty()) {
+            $firstDrawing = $drawings->first();
+            Log::info('First drawing workRates count:', ['count' => $firstDrawing->workRates->count(), 'drawing_id' => $firstDrawing->id]);
+        }
+        
         $workMethods = WorkMethod::orderBy('name')->get();
         $defectTypes = DefectType::orderBy('name')->get();
 

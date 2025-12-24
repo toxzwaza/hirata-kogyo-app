@@ -44,6 +44,7 @@ class LoginRequest extends FormRequest
         // staffテーブルで認証を試行（login_idを使用）
         $staff = \App\Models\Staff::where('login_id', $this->input('login_id'))
             ->where('active_flag', true)
+            ->where('admin_flg', true)
             ->first();
 
         if (!$staff || !\Illuminate\Support\Facades\Hash::check($this->input('password'), $staff->password)) {

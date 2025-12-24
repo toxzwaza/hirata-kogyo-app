@@ -25,11 +25,13 @@ class Staff extends Authenticatable
         'login_id',
         'password',
         'address',
+        'postal_code',
         'tel',
         'email',
         'tax_type',
         'birth_date',
         'active_flag',
+        'admin_flg',
         'bank_name',
         'branch_name',
         'account_type',
@@ -42,6 +44,7 @@ class Staff extends Authenticatable
 
     protected $casts = [
         'active_flag' => 'boolean',
+        'admin_flg' => 'boolean',
     ];
 
     /**

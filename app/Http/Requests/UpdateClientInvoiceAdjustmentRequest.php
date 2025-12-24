@@ -32,3 +32,4 @@ class UpdateClientInvoiceAdjustmentRequest extends FormRequest
     }
 }
 
+

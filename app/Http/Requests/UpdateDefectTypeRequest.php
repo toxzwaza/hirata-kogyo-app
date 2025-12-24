@@ -34,3 +34,4 @@ class UpdateDefectTypeRequest extends FormRequest
 }
 
 
+

@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed } from 'vue';
-import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
@@ -30,7 +29,7 @@ const isMasterActive = computed(() => {
 <template>
     <div>
         <div class="min-h-screen bg-gray-100">
-            <nav class="bg-white border-b border-gray-100">
+            <nav class="bg-gradient-to-r from-[#ebe32b] via-[#f5f055] to-[#ebe32b] border-b border-gray-100">
                 <!-- Primary Navigation Menu -->
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="flex justify-between h-16">
@@ -38,26 +37,72 @@ const isMasterActive = computed(() => {
                             <!-- Logo -->
                             <div class="shrink-0 flex items-center">
                                 <Link :href="route('dashboard')">
-                                    <ApplicationLogo
-                                        class="block h-9 w-auto fill-current text-gray-800"
+                                    <img
+                                        src="/storage/logo/hirata-logo.png"
+                                        alt="平田工業"
+                                        class="block h-9 w-auto"
                                     />
                                 </Link>
                             </div>
 
                             <!-- Navigation Links -->
                             <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
-                                <NavLink :href="route('dashboard')" :active="route().current('dashboard')">
-                                    ダッシュボード
-                                </NavLink>
                                 <NavLink :href="route('work-records.index')" :active="route().current('work-records.*')">
-                                    作業実績
+                                    作業実績管理
                                 </NavLink>
                                 <NavLink :href="route('staff-invoices.index')" :active="route().current('staff-invoices.*')">
                                     スタッフ請求書
                                 </NavLink>
-                                <NavLink :href="route('clients.index')" :active="isMasterActive">
-                                    マスタ管理
+                                <NavLink :href="route('client-invoices.index')" :active="route().current('client-invoices.*')">
+                                    客先請求書
                                 </NavLink>
+                                
+                                <!-- マスタ管理ドロップダウン -->
+                                <div class="relative group flex items-center">
+                                    <NavLink 
+                                        :href="route('clients.index')" 
+                                        :active="isMasterActive"
+                                        class="cursor-pointer"
+                                    >
+                                        マスタ管理
+                                        <svg
+                                            class="ml-1 -mr-0.5 h-4 w-4 inline-block"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            viewBox="0 0 20 20"
+                                            fill="currentColor"
+                                        >
+                                            <path
+                                                fill-rule="evenodd"
+                                                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                                clip-rule="evenodd"
+                                            />
+                                        </svg>
+                                    </NavLink>
+                                    
+                                    <!-- ドロップダウンメニュー -->
+                                    <div class="absolute top-full left-0 mt-1 w-48 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 border border-gray-200">
+                                        <div class="py-1">
+                                            <Link :href="route('clients.index')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                客先管理
+                                            </Link>
+                                            <Link :href="route('drawings.index')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                図番管理
+                                            </Link>
+                                            <Link :href="route('work-methods.index')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                作業方法管理
+                                            </Link>
+                                            <Link :href="route('work-rates.index')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                作業単価管理
+                                            </Link>
+                                            <Link :href="route('staff.index')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                スタッフ管理
+                                            </Link>
+                                            <Link :href="route('defect-types.index')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                不良種類管理
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -138,18 +183,38 @@ const isMasterActive = computed(() => {
                     class="sm:hidden"
                 >
                     <div class="pt-2 pb-3 space-y-1">
-                        <ResponsiveNavLink :href="route('dashboard')" :active="route().current('dashboard')">
-                            ダッシュボード
-                        </ResponsiveNavLink>
                         <ResponsiveNavLink :href="route('work-records.index')" :active="route().current('work-records.*')">
-                            作業実績
+                            作業実績管理
                         </ResponsiveNavLink>
                         <ResponsiveNavLink :href="route('staff-invoices.index')" :active="route().current('staff-invoices.*')">
                             スタッフ請求書
                         </ResponsiveNavLink>
-                        <ResponsiveNavLink :href="route('clients.index')" :active="isMasterActive">
-                            マスタ管理
+                        <ResponsiveNavLink :href="route('client-invoices.index')" :active="route().current('client-invoices.*')">
+                            客先請求書
                         </ResponsiveNavLink>
+                        <div class="px-4 py-2">
+                            <div class="text-sm font-medium text-gray-500 mb-1">マスタ管理</div>
+                            <div class="pl-4 space-y-1">
+                                <ResponsiveNavLink :href="route('clients.index')" :active="route().current('clients.*')">
+                                    客先管理
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('drawings.index')" :active="route().current('drawings.*')">
+                                    図番管理
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('work-methods.index')" :active="route().current('work-methods.*')">
+                                    作業方法管理
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('work-rates.index')" :active="route().current('work-rates.*')">
+                                    作業単価管理
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('staff.index')" :active="route().current('staff.*')">
+                                    スタッフ管理
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('defect-types.index')" :active="route().current('defect-types.*')">
+                                    不良種類管理
+                                </ResponsiveNavLink>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Responsive Settings Options -->

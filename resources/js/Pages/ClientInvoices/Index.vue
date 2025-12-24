@@ -248,3 +248,4 @@ const getStatusClass = (status) => {
     </AuthenticatedLayout>
 </template>
 
+

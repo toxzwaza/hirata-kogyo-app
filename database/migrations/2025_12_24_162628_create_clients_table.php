@@ -16,7 +16,7 @@ return new class extends Migration
         Schema::create('clients', function (Blueprint $table) {
             $table->id()->comment('客先ID');
             $table->string('name')->comment('客先名');
-            $table->string('name_kana')->comment('客先名フリガナ');
+            $table->string('name_kana')->nullable()->comment('客先名フリガナ');
             $table->timestamps();
         });
     }

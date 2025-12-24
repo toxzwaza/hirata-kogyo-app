@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
@@ -8,6 +8,23 @@ import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link } from '@inertiajs/vue3';
 
 const showingNavigationDropdown = ref(false);
+
+// マスタ管理のルートがアクティブかどうかを判定
+const isMasterActive = computed(() => {
+    const currentRoute = route().current();
+    if (!currentRoute || typeof currentRoute !== 'string') return false;
+    
+    const masterRoutePrefixes = [
+        'clients.',
+        'drawings.',
+        'work-methods.',
+        'work-rates.',
+        'staff.',
+        'defect-types.',
+    ];
+    
+    return masterRoutePrefixes.some(prefix => currentRoute.startsWith(prefix));
+});
 </script>
 
 <template>
@@ -30,7 +47,16 @@ const showingNavigationDropdown = ref(false);
                             <!-- Navigation Links -->
                             <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
                                 <NavLink :href="route('dashboard')" :active="route().current('dashboard')">
-                                    Dashboard
+                                    ダッシュボード
+                                </NavLink>
+                                <NavLink :href="route('work-records.index')" :active="route().current('work-records.*')">
+                                    作業実績
+                                </NavLink>
+                                <NavLink :href="route('staff-invoices.index')" :active="route().current('staff-invoices.*')">
+                                    スタッフ請求書
+                                </NavLink>
+                                <NavLink :href="route('clients.index')" :active="isMasterActive">
+                                    マスタ管理
                                 </NavLink>
                             </div>
                         </div>
@@ -113,7 +139,16 @@ const showingNavigationDropdown = ref(false);
                 >
                     <div class="pt-2 pb-3 space-y-1">
                         <ResponsiveNavLink :href="route('dashboard')" :active="route().current('dashboard')">
-                            Dashboard
+                            ダッシュボード
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('work-records.index')" :active="route().current('work-records.*')">
+                            作業実績
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('staff-invoices.index')" :active="route().current('staff-invoices.*')">
+                            スタッフ請求書
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('clients.index')" :active="isMasterActive">
+                            マスタ管理
                         </ResponsiveNavLink>
                     </div>
 

@@ -19,6 +19,8 @@ class DatabaseSeeder extends Seeder
             WorkMethodSeeder::class,
             DefectTypeSeeder::class,
             ClientSeeder::class,
+            DrawingSeeder::class,
+            WorkRateSeeder::class,
             StaffSeeder::class,
         ]);
     }

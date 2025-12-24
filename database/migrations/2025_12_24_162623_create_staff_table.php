@@ -19,16 +19,19 @@ return new class extends Migration
                 ->constrained('staff_types')
                 ->comment('スタッフ種別ID');
             $table->string('name')->comment('氏名');
+            $table->string('name_kana')->nullable()->comment('氏名（カナ）');
             $table->string('login_id')->unique()->comment('ログインID（ユニーク）');
             $table->string('password')->comment('ログイン用パスワード（ハッシュ）');
             $table->string('address')->nullable()->comment('住所');
+            $table->string('postal_code')->nullable()->comment('郵便番号');
             $table->string('tel')->nullable()->comment('電話番号');
             $table->string('email')->nullable()->comment('メールアドレス');
             $table->enum('tax_type', ['taxable', 'tax_exempt'])->comment('課税区分');
+
+            $table->date('birth_date')->nullable()->comment('生年月日');
             $table->boolean('active_flag')->default(true)->comment('有効フラグ');
             $table->timestamps();
         });
-        
     }
 
     /**

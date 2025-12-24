@@ -9,19 +9,36 @@ class ClientSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('clients')->insert([
-            [
-                'name' => '株式会社〇〇製作所',
-                'name_kana' => 'カブシキガイシャマルマルセイサクショ',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'name' => '△△工業株式会社',
-                'name_kana' => 'サンカクコウギョウカブシキガイシャ',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ]);
+        $csvPath = storage_path('app/public/移行用/客先.csv');
+        $clients = [];
+
+        if (file_exists($csvPath)) {
+            $handle = fopen($csvPath, 'r');
+            if ($handle !== false) {
+                // 1行目（ヘッダー）をスキップ
+                fgetcsv($handle);
+
+                // CSVファイルの各行を読み込む
+                while (($row = fgetcsv($handle)) !== false) {
+                    if (!empty($row[0])) {
+                        // 文字エンコーディングをShift-JISからUTF-8に変換
+                        $name = mb_convert_encoding(trim($row[0]), 'UTF-8', 'SJIS-win');
+                        
+                        $clients[] = [
+                            'name' => $name,
+                            'name_kana' => null,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
+                    }
+                }
+                fclose($handle);
+            }
+        }
+
+        // データが存在する場合のみ挿入
+        if (!empty($clients)) {
+            DB::table('clients')->insert($clients);
+        }
     }
 }

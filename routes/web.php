@@ -1,6 +1,15 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\WorkRecordController;
+use App\Http\Controllers\StaffInvoiceController;
+use App\Http\Controllers\ClientInvoiceController;
+use App\Http\Controllers\ClientController;
+use App\Http\Controllers\DrawingController;
+use App\Http\Controllers\WorkMethodController;
+use App\Http\Controllers\WorkRateController;
+use App\Http\Controllers\StaffController;
+use App\Http\Controllers\DefectTypeController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -33,6 +42,28 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // 作業実績管理
+    Route::resource('work-records', WorkRecordController::class);
+
+    // スタッフ請求書管理
+    Route::resource('staff-invoices', StaffInvoiceController::class)->except(['edit', 'update']);
+    Route::post('/staff-invoices/{staff_invoice}/fix', [StaffInvoiceController::class, 'fix'])->name('staff-invoices.fix');
+    Route::get('/staff-invoices/{staff_invoice}/pdf', [StaffInvoiceController::class, 'pdf'])->name('staff-invoices.pdf');
+
+    // 客先請求書管理
+    Route::resource('client-invoices', ClientInvoiceController::class)->except(['edit', 'update', 'destroy']);
+    Route::post('/client-invoices/{client_invoice}/update-adjustment', [ClientInvoiceController::class, 'updateAdjustment'])->name('client-invoices.update-adjustment');
+    Route::post('/client-invoices/{client_invoice}/fix', [ClientInvoiceController::class, 'fix'])->name('client-invoices.fix');
+    Route::get('/client-invoices/{client_invoice}/pdf', [ClientInvoiceController::class, 'pdf'])->name('client-invoices.pdf');
+
+    // マスタ管理
+    Route::resource('clients', ClientController::class);
+    Route::resource('drawings', DrawingController::class);
+    Route::resource('work-methods', WorkMethodController::class);
+    Route::resource('work-rates', WorkRateController::class);
+    Route::resource('staff', StaffController::class);
+    Route::resource('defect-types', DefectTypeController::class);
 });
 
 require __DIR__.'/auth.php';

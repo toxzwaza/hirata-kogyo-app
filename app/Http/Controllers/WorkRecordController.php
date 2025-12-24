@@ -98,6 +98,100 @@ class WorkRecordController extends Controller
     }
 
     /**
+     * 作業実績登録画面（スマホ用）
+     */
+    public function createForMobile()
+    {
+        // ログイン中のスタッフを取得
+        $currentStaff = auth()->user();
+        
+        $drawings = Drawing::where('active_flag', true)
+            ->with('client')
+            ->orderBy('drawing_number')
+            ->get();
+        $workMethods = WorkMethod::orderBy('name')->get();
+        $defectTypes = DefectType::orderBy('name')->get();
+
+        return Inertia::render('Mobile/WorkRecords/Create', [
+            'currentStaff' => $currentStaff,
+            'drawings' => $drawings,
+            'workMethods' => $workMethods,
+            'defectTypes' => $defectTypes,
+        ]);
+    }
+
+    /**
+     * 作業実績登録処理（スマホ用）
+     */
+    public function storeForMobile(StoreWorkRecordRequest $request)
+    {
+        // ログイン中のスタッフIDを使用（auth()->id()はlogin_idを返すため、user()->idを使用）
+        $request->merge(['staff_id' => auth()->user()->id]);
+        
+        DB::beginTransaction();
+        try {
+            // 作業時間を計算（分）
+            $startTime = Carbon::parse($request->start_time);
+            $endTime = Carbon::parse($request->end_time);
+            $workMinutes = $startTime->diffInMinutes($endTime);
+
+            // 有効な作業単価を取得
+            $drawing = Drawing::findOrFail($request->drawing_id);
+            $workRate = $drawing->getEffectiveWorkRate(
+                $request->work_method_id,
+                $startTime
+            );
+
+            if (!$workRate) {
+                return back()->withErrors([
+                    'work_method_id' => '指定された日時点で有効な作業単価が設定されていません。'
+                ]);
+            }
+
+            // 作業実績を作成
+            $workRecord = WorkRecord::create([
+                'drawing_id' => $request->drawing_id,
+                'work_method_id' => $request->work_method_id,
+                'staff_id' => $request->staff_id,
+                'work_rate_id' => $workRate->id,
+                'start_time' => $request->start_time,
+                'end_time' => $request->end_time,
+                'work_minutes' => $workMinutes,
+                'quantity_good' => $request->quantity_good,
+                'quantity_ng' => $request->quantity_ng,
+                'memo' => $request->memo,
+            ]);
+
+            // 不良内訳を登録
+            if ($request->filled('defects') && is_array($request->defects)) {
+                // 不良数の合計が一致するかチェック
+                $totalDefectQuantity = array_sum(array_column($request->defects, 'defect_quantity'));
+                if ($totalDefectQuantity !== $request->quantity_ng) {
+                    throw new \Exception('不良内訳の合計が不良数と一致しません。');
+                }
+
+                foreach ($request->defects as $defect) {
+                    $workRecord->defects()->create([
+                        'defect_type_id' => $defect['defect_type_id'],
+                        'defect_quantity' => $defect['defect_quantity'],
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            // スマホ版では同じ画面に戻り、成功メッセージを表示
+            return redirect()->route('staff.work-records.create')
+                ->with('success', '作業実績を登録しました。');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors([
+                'error' => '作業実績の登録に失敗しました: ' . $e->getMessage()
+            ])->withInput();
+        }
+    }
+
+    /**
      * 作業実績登録処理
      */
     public function store(StoreWorkRecordRequest $request)

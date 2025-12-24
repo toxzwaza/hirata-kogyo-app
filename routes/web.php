@@ -26,12 +26,7 @@ use Inertia\Inertia;
 */
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return redirect()->route('login');
 });
 
 Route::get('/dashboard', function () {
@@ -64,6 +59,13 @@ Route::middleware('auth')->group(function () {
     Route::resource('work-rates', WorkRateController::class);
     Route::resource('staff', StaffController::class);
     Route::resource('defect-types', DefectTypeController::class);
+});
+
+// スタッフ用スマホ画面（admin_flgに関係なくログイン可能）
+Route::prefix('staff')->middleware('auth')->name('staff.')->group(function () {
+    // 作業実績登録（スマホ用）
+    Route::get('/work-records/create', [WorkRecordController::class, 'createForMobile'])->name('work-records.create');
+    Route::post('/work-records', [WorkRecordController::class, 'storeForMobile'])->name('work-records.store');
 });
 
 require __DIR__.'/auth.php';

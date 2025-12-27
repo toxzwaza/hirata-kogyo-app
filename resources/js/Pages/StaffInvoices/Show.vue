@@ -1,6 +1,8 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import Invoice from '@/Components/Invoice.vue';
 
 const props = defineProps({
     invoice: Object,
@@ -8,7 +10,11 @@ const props = defineProps({
 
 const formatDate = (date) => {
     if (!date) return '';
-    return new Date(date).toLocaleDateString('ja-JP');
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    return `${year}年${month}月${day}日`;
 };
 
 const formatDateTime = (dateTime) => {
@@ -29,6 +35,89 @@ const fixInvoice = () => {
 const downloadPdf = () => {
     window.location.href = route('staff-invoices.pdf', props.invoice.id);
 };
+
+// Invoice.vueに渡すためのデータを準備
+const invoiceClient = computed(() => ({
+    name: props.invoice.staff?.name || '',
+    postal: props.invoice.staff?.postal_code || '',
+    address: props.invoice.staff?.address || '',
+}));
+
+const invoiceIssuer = computed(() => ({
+    name: '株式会社○○',
+    postal: '710-1313',
+    address1: '岡山県倉敷市真備町川辺233-1',
+    address2: '',
+    tel: '080-8071-0566',
+    person: '平田 敦士',
+}));
+
+const invoiceData = computed(() => {
+    const issueDate = props.invoice.issue_date ? formatDate(props.invoice.issue_date) : '';
+    const dueDate = props.invoice.issue_date 
+        ? formatDate(new Date(new Date(props.invoice.issue_date).getTime() + 30 * 24 * 60 * 60 * 1000))
+        : '';
+    
+    return {
+        issueDate: issueDate,
+        number: props.invoice.invoice_number || '',
+        dueDate: dueDate,
+        title: `請求期間: ${formatDate(props.invoice.period_from)} ～ ${formatDate(props.invoice.period_to)}`,
+        bank: props.invoice.staff?.bank_name 
+            ? `${props.invoice.staff.bank_name} ${props.invoice.staff.branch_name || ''} ${props.invoice.staff.account_type || ''} ${props.invoice.staff.account_number || ''}`.trim()
+            : '',
+        remarks: '',
+    };
+});
+
+// 作業実績データをInvoice.vueの形式に変換
+const workItems = computed(() => {
+    if (!props.invoice.details) return [];
+    
+    return props.invoice.details.map((detail) => {
+        const workRecord = detail.work_record;
+        const drawing = workRecord?.drawing;
+        const client = drawing?.client;
+        const workRate = workRecord?.work_rate;
+        
+        // 日付を取得（作業開始日）
+        const date = workRecord?.start_time 
+            ? formatDate(workRecord.start_time)
+            : '';
+        
+        // 客先名
+        const clientName = client?.name || '';
+        
+        // 品番（図番）
+        const drawingNumber = drawing?.drawing_number || '';
+        
+        // 品名
+        const productName = drawing?.product_name || '';
+        
+        // 実績数（良品数 + 不良数）
+        const quantity = (workRecord?.quantity_good || 0) + (workRecord?.quantity_ng || 0);
+        
+        // 1個あたりの重量（kg）
+        const weightPerUnit = drawing?.weight_per_unit || 0;
+        
+        // 個単価（1個あたりの重量 × rate_contractor）
+        // rate_contractorは重量あたりの単価（円/kg）なので、1個あたりの単価を計算
+        const unitPrice = weightPerUnit * (workRate?.rate_contractor || 0);
+        
+        // 金額（実績数 × 個単価）
+        const amount = quantity * unitPrice;
+        
+        return {
+            date,
+            client: clientName,
+            drawingNumber,
+            productName,
+            quantity,
+            unitPrice,
+            amount,
+        };
+    });
+});
 </script>
 
 <template>
@@ -60,104 +149,31 @@ const downloadPdf = () => {
 
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                <div class="bg-white shadow-sm rounded-lg p-6">
-                    <!-- 請求書ヘッダー -->
-                    <div class="mb-8">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <h3 class="text-lg font-bold mb-2">請求先</h3>
-                                <p class="text-sm">{{ invoice.staff.name }}</p>
-                                <p class="text-sm text-gray-600">{{ invoice.staff.staff_type.name }}</p>
-                                <p v-if="invoice.staff.address" class="text-sm text-gray-600 mt-2">
-                                    {{ invoice.staff.address }}
-                                </p>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-sm text-gray-600">請求書番号: {{ invoice.invoice_number }}</p>
-                                <p class="text-sm text-gray-600">発行日: {{ formatDate(invoice.issue_date) }}</p>
-                                <p class="text-sm text-gray-600">
-                                    請求期間: {{ formatDate(invoice.period_from) }} ～ {{ formatDate(invoice.period_to) }}
-                                </p>
-                                <p class="text-sm text-gray-600 mt-2">
-                                    ステータス:
-                                    <span
-                                        :class="{
-                                            'text-gray-600': invoice.status === 'draft',
-                                            'text-blue-600': invoice.status === 'fixed',
-                                            'text-green-600': invoice.status === 'paid',
-                                        }"
-                                        class="font-bold"
-                                    >
-                                        {{ invoice.status === 'draft' ? '下書き' : invoice.status === 'fixed' ? '確定' : '支払済' }}
-                                    </span>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 明細テーブル -->
-                    <div class="mb-8">
-                        <h3 class="text-lg font-bold mb-4">明細</h3>
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        説明
-                                    </th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        数量（kg）
-                                    </th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        単価（円/kg）
-                                    </th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        金額
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <tr v-for="detail in invoice.details" :key="detail.id">
-                                    <td class="px-6 py-4 text-sm text-gray-900">
-                                        {{ detail.description }}
-                                        <br>
-                                        <span class="text-xs text-gray-500">
-                                            図番: {{ detail.work_record.drawing.drawing_number }} |
-                                            客先: {{ detail.work_record.drawing.client.name }} |
-                                            作業日時: {{ formatDateTime(detail.work_record.start_time) }}
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-gray-900 text-right">
-                                        {{ formatNumber(detail.quantity) }}
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-gray-900 text-right">
-                                        ¥{{ formatNumber(detail.unit_price) }}
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-gray-900 text-right">
-                                        ¥{{ formatNumber(detail.amount) }}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- 合計 -->
-                    <div class="flex justify-end">
-                        <div class="w-64">
-                            <div class="flex justify-between py-2 border-b">
-                                <span class="text-sm font-medium">小計</span>
-                                <span class="text-sm">¥{{ formatNumber(invoice.subtotal) }}</span>
-                            </div>
-                            <div class="flex justify-between py-2 border-b">
-                                <span class="text-sm font-medium">消費税</span>
-                                <span class="text-sm">¥{{ formatNumber(invoice.tax) }}</span>
-                            </div>
-                            <div class="flex justify-between py-2">
-                                <span class="text-lg font-bold">合計</span>
-                                <span class="text-lg font-bold">¥{{ formatNumber(invoice.total) }}</span>
-                            </div>
-                        </div>
+                <div class="bg-white shadow-sm rounded-lg p-6 mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <p class="text-sm text-gray-600">
+                            ステータス:
+                            <span
+                                :class="{
+                                    'text-gray-600': invoice.status === 'draft',
+                                    'text-blue-600': invoice.status === 'fixed',
+                                    'text-green-600': invoice.status === 'paid',
+                                }"
+                                class="font-bold"
+                            >
+                                {{ invoice.status === 'draft' ? '下書き' : invoice.status === 'fixed' ? '確定' : '支払済' }}
+                            </span>
+                        </p>
                     </div>
                 </div>
+                
+                <Invoice
+                    type="staff"
+                    :client="invoiceClient"
+                    :issuer="invoiceIssuer"
+                    :invoice="invoiceData"
+                    :work-items="workItems"
+                />
             </div>
         </div>
     </AuthenticatedLayout>

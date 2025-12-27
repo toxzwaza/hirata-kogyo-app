@@ -103,6 +103,7 @@ class StaffInvoiceController extends Controller
             'staff.staffType',
             'details.workRecord.drawing.client',
             'details.workRecord.workMethod',
+            'details.workRecord.workRate',
         ]);
 
         return Inertia::render('StaffInvoices/Show', [

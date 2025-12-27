@@ -18,7 +18,6 @@ class CreateClientInvoiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'client_id' => ['required', 'exists:clients,id'],
             'staff_invoice_ids' => ['required', 'array', 'min:1'],
             'staff_invoice_ids.*' => ['required', 'exists:staff_invoices,id'],
             'period_from' => ['required', 'date'],
@@ -29,8 +28,6 @@ class CreateClientInvoiceRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'client_id.required' => '客先を選択してください。',
-            'client_id.exists' => '選択された客先が存在しません。',
             'staff_invoice_ids.required' => 'スタッフ請求書を1つ以上選択してください。',
             'staff_invoice_ids.array' => 'スタッフ請求書の選択形式が正しくありません。',
             'staff_invoice_ids.min' => 'スタッフ請求書を1つ以上選択してください。',

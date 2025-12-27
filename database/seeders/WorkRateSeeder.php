@@ -87,7 +87,7 @@ class WorkRateSeeder extends Seeder
                         'rate_contractor' => $rateContractorValue,
                         'rate_overtime' => $rateOvertimeValue,
                         'note' => !empty($note) ? $note : null,
-                        'effective_from' => now()->format('Y-m-d'),
+                        'effective_from' => now()->subYears(2)->format('Y-01-01'),
                         'effective_to' => null,
                         'created_at' => now(),
                         'updated_at' => now(),

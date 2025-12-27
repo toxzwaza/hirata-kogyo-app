@@ -4,13 +4,11 @@ import { Head, useForm, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
 const props = defineProps({
-    clients: Array,
     staffInvoices: Array,
     filters: Object,
 });
 
 const form = useForm({
-    client_id: '',
     staff_invoice_ids: [],
     period_from: '',
     period_to: '',
@@ -77,28 +75,6 @@ const submit = () => {
                 <div class="bg-white shadow-sm rounded-lg p-6">
                     <form @submit.prevent="submit">
                         <div class="space-y-6">
-                            <!-- 客先選択 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">客先 *</label>
-                                <select
-                                    v-model="form.client_id"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                                    :class="{ 'border-red-500': form.errors.client_id }"
-                                >
-                                    <option value="">選択してください</option>
-                                    <option
-                                        v-for="client in clients"
-                                        :key="client.id"
-                                        :value="client.id"
-                                    >
-                                        {{ client.name }}
-                                    </option>
-                                </select>
-                                <p v-if="form.errors.client_id" class="mt-1 text-sm text-red-600">
-                                    {{ form.errors.client_id }}
-                                </p>
-                            </div>
-
                             <!-- 請求期間 -->
                             <div class="grid grid-cols-2 gap-4">
                                 <div>

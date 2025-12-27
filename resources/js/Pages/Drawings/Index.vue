@@ -1,17 +1,26 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
-defineProps({
+const props = defineProps({
     drawings: Object,
     clients: Array,
     filters: Object,
 });
 
-const search = ref('');
-const clientId = ref(null);
-const activeFlag = ref(null);
+const search = ref(props.filters?.search || '');
+const clientId = ref(props.filters?.client_id || null);
+const activeFlag = ref(props.filters?.active_flag !== undefined ? props.filters.active_flag : null);
+
+// フィルターが変更されたときに再初期化
+watch(() => props.filters, (newFilters) => {
+    if (newFilters) {
+        search.value = newFilters.search || '';
+        clientId.value = newFilters.client_id || null;
+        activeFlag.value = newFilters.active_flag !== undefined ? newFilters.active_flag : null;
+    }
+}, { deep: true });
 
 const applyFilters = () => {
     router.get(route('drawings.index'), {
@@ -189,6 +198,8 @@ const clearFilters = () => {
         </div>
     </AuthenticatedLayout>
 </template>
+
+
 
 
 

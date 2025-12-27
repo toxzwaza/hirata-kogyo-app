@@ -28,8 +28,8 @@ class DrawingController extends Controller
             $query->where('client_id', $request->client_id);
         }
 
-        if ($request->has('active_flag')) {
-            $query->where('active_flag', $request->active_flag);
+        if ($request->has('active_flag') && $request->active_flag !== null && $request->active_flag !== '') {
+            $query->where('active_flag', filter_var($request->active_flag, FILTER_VALIDATE_BOOLEAN));
         }
 
         $drawings = $query->paginate(20)->withQueryString();
@@ -119,6 +119,8 @@ class DrawingController extends Controller
             ->with('success', '図番を削除しました。');
     }
 }
+
+
 
 
 

@@ -1,20 +1,31 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
-defineProps({
+const props = defineProps({
     workRates: Object,
     drawings: Array,
     workMethods: Array,
     filters: Object,
 });
 
-const drawingId = ref(null);
-const workMethodId = ref(null);
+const search = ref(props.filters?.search || '');
+const drawingId = ref(props.filters?.drawing_id || null);
+const workMethodId = ref(props.filters?.work_method_id || null);
+
+// フィルターが変更されたときに再初期化
+watch(() => props.filters, (newFilters) => {
+    if (newFilters) {
+        search.value = newFilters.search || '';
+        drawingId.value = newFilters.drawing_id || null;
+        workMethodId.value = newFilters.work_method_id || null;
+    }
+}, { deep: true });
 
 const applyFilters = () => {
     router.get(route('work-rates.index'), {
+        search: search.value,
         drawing_id: drawingId.value,
         work_method_id: workMethodId.value,
     }, {
@@ -24,6 +35,7 @@ const applyFilters = () => {
 };
 
 const clearFilters = () => {
+    search.value = '';
     drawingId.value = null;
     workMethodId.value = null;
     router.get(route('work-rates.index'));
@@ -59,7 +71,16 @@ const formatNumber = (num) => {
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <!-- 検索 -->
                 <div class="bg-white shadow-sm rounded-lg p-6 mb-6">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <input
+                                v-model="search"
+                                type="text"
+                                placeholder="図番または品名で検索"
+                                class="w-full rounded-md border-gray-300 shadow-sm"
+                                @keyup.enter="applyFilters"
+                            />
+                        </div>
                         <div>
                             <select
                                 v-model="drawingId"
@@ -194,6 +215,8 @@ const formatNumber = (num) => {
         </div>
     </AuthenticatedLayout>
 </template>
+
+
 
 
 

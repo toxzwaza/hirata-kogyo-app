@@ -19,6 +19,14 @@ class WorkRateController extends Controller
             ->orderBy('effective_from', 'desc')
             ->orderBy('drawing_id');
 
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('drawing', function ($q) use ($search) {
+                $q->where('drawing_number', 'like', "%{$search}%")
+                    ->orWhere('product_name', 'like', "%{$search}%");
+            });
+        }
+
         if ($request->filled('drawing_id')) {
             $query->where('drawing_id', $request->drawing_id);
         }
@@ -35,7 +43,7 @@ class WorkRateController extends Controller
             'workRates' => $workRates,
             'drawings' => $drawings,
             'workMethods' => $workMethods,
-            'filters' => $request->only(['drawing_id', 'work_method_id']),
+            'filters' => $request->only(['search', 'drawing_id', 'work_method_id']),
         ]);
     }
 

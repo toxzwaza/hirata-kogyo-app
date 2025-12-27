@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             DrawingSeeder::class,
             WorkRateSeeder::class,
             StaffSeeder::class,
+            WorkRecordSeeder::class,
         ]);
     }
 }

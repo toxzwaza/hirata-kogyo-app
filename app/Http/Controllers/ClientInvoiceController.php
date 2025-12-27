@@ -62,8 +62,6 @@ class ClientInvoiceController extends Controller
      */
     public function create(Request $request)
     {
-        $clients = Client::orderBy('name')->get();
-
         // 確定済みで未使用のスタッフ請求書を取得
         $staffInvoices = StaffInvoice::where('status', 'fixed')
             ->whereDoesntHave('clientInvoiceItems') // まだ客先請求書に含まれていない
@@ -81,7 +79,6 @@ class ClientInvoiceController extends Controller
         }
 
         return Inertia::render('ClientInvoices/Create', [
-            'clients' => $clients,
             'staffInvoices' => $staffInvoices,
             'filters' => $request->only(['period_from', 'period_to']),
         ]);
@@ -93,8 +90,14 @@ class ClientInvoiceController extends Controller
     public function store(CreateClientInvoiceRequest $request)
     {
         try {
+            // 固定の客先名「株式会社○○」を使用（存在しない場合は作成）
+            $client = Client::firstOrCreate(
+                ['name' => '株式会社○○'],
+                ['name_kana' => '']
+            );
+            
             $invoice = $this->clientInvoiceService->createInvoice(
-                $request->client_id,
+                $client->id,
                 $request->staff_invoice_ids,
                 $request->period_from,
                 $request->period_to
@@ -117,7 +120,9 @@ class ClientInvoiceController extends Controller
         $clientInvoice->load([
             'client',
             'staffInvoiceItems.staffInvoice.staff.staffType',
-            'staffInvoiceItems.staffInvoice.details.workRecord.drawing',
+            'staffInvoiceItems.staffInvoice.details.workRecord.drawing.client',
+            'staffInvoiceItems.staffInvoice.details.workRecord.workMethod',
+            'staffInvoiceItems.staffInvoice.details.workRecord.workRate',
         ]);
 
         return Inertia::render('ClientInvoices/Show', [

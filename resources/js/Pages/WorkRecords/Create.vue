@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 const props = defineProps({
     staffList: Array,
@@ -126,16 +126,123 @@ const availableWorkMethods = computed(() => {
     return filtered;
 });
 
+// 現在の日時を5分単位に丸めて取得
+const getCurrentDate = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const getCurrentHour = () => {
+    return String(new Date().getHours()).padStart(2, '0');
+};
+
+const getCurrentMinute = () => {
+    const now = new Date();
+    // 分を5分単位に丸める（例: 23分 → 20分、27分 → 25分）
+    const minutes = Math.floor(now.getMinutes() / 5) * 5;
+    return String(minutes).padStart(2, '0');
+};
+
+// 5分単位の選択肢（0, 5, 10, 15, ..., 55）
+const minuteOptions = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+
+// URLパラメータから初期値を取得
+const getUrlParams = () => {
+    const params = new URLSearchParams(window.location.search);
+    return {
+        staff_id: params.get('staff_id') || '',
+        start_date: params.get('start_date') || '',
+        start_hour: params.get('start_hour') || '',
+        start_minute: params.get('start_minute') || '',
+        end_date: params.get('end_date') || '',
+        end_hour: params.get('end_hour') || '',
+        end_minute: params.get('end_minute') || '',
+    };
+};
+
+// 初期の終了日時を計算（開始時間+1時間、23時の場合は日付も1日進める）
+const getInitialEndDateTime = (startDate, startHour) => {
+    const date = startDate || getCurrentDate();
+    const hour = startHour !== undefined ? parseInt(startHour) : parseInt(getCurrentHour());
+    const endHour = (hour + 1) % 24;
+    
+    if (hour === 23) {
+        // 23時の場合は日付も1日進める
+        const dateObj = new Date(date);
+        dateObj.setDate(dateObj.getDate() + 1);
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return {
+            date: `${year}-${month}-${day}`,
+            hour: String(endHour).padStart(2, '0'),
+        };
+    } else {
+        return {
+            date: date,
+            hour: String(endHour).padStart(2, '0'),
+        };
+    }
+};
+
+// URLパラメータから初期値を取得
+const urlParams = getUrlParams();
+
+// 初期値を決定（URLパラメータがあればそれを使用、なければ現在の日時）
+const initialStartDate = urlParams.start_date || getCurrentDate();
+const initialStartHour = urlParams.start_hour || getCurrentHour();
+const initialStartMinute = urlParams.start_minute || getCurrentMinute();
+const initialEndDateTime = getInitialEndDateTime(initialStartDate, initialStartHour);
+
 const form = useForm({
     drawing_id: '',
     work_method_id: '',
-    staff_id: '',
-    start_time: '',
-    end_time: '',
+    staff_id: urlParams.staff_id || '',
+    start_date: initialStartDate,
+    start_hour: initialStartHour,
+    start_minute: initialStartMinute,
+    end_date: urlParams.end_date || initialEndDateTime.date,
+    end_hour: urlParams.end_hour || initialEndDateTime.hour,
+    end_minute: urlParams.end_minute || getCurrentMinute(),
     quantity_good: 0,
     quantity_ng: 0,
     memo: '',
     defects: [],
+});
+
+// 日付・時間・分を結合してdatetime形式（YYYY-MM-DDTHH:mm）に変換
+const combineDateTime = (date, hour, minute) => {
+    if (!date || !hour || minute === undefined) return '';
+    return `${date}T${hour}:${minute}`;
+};
+
+// 開始日付・時間・分が変更されたら終了時刻を自動設定
+watch([() => form.start_date, () => form.start_hour, () => form.start_minute], () => {
+    if (form.start_date && form.start_hour && form.start_minute !== undefined) {
+        const startHour = parseInt(form.start_hour) || 0;
+        const endHour = (startHour + 1) % 24;
+        
+        // 開始時間+1時間を終了時間に設定
+        form.end_hour = String(endHour).padStart(2, '0');
+        // 開始分を終了分に設定
+        form.end_minute = form.start_minute;
+        
+        // 23時の場合は日付も1日進める
+        if (startHour === 23) {
+            const date = new Date(form.start_date);
+            date.setDate(date.getDate() + 1);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            form.end_date = `${year}-${month}-${day}`;
+        } else {
+            // それ以外の場合は開始日付と同じ
+            form.end_date = form.start_date;
+        }
+    }
 });
 
 const addDefect = () => {
@@ -154,7 +261,41 @@ const totalDefectQuantity = () => {
 };
 
 const submit = () => {
-    form.post(route('work-records.store'));
+    // 日付・時間・分を結合してdatetime形式に変換
+    const startTime = combineDateTime(form.start_date, form.start_hour, form.start_minute);
+    const endTime = combineDateTime(form.end_date, form.end_hour, form.end_minute);
+    
+    // 一時的にstart_timeとend_timeを設定して送信
+    form.transform((data) => ({
+        ...data,
+        start_time: startTime,
+        end_time: endTime,
+    })).post(route('work-records.store'), {
+        onSuccess: () => {
+            // 登録成功時に確認ダイアログを表示
+            if (confirm('続けて登録を行いますか？')) {
+                // 続けて登録する場合、スタッフと時刻を保持してリダイレクト
+                const params = new URLSearchParams({
+                    staff_id: form.staff_id,
+                    start_date: form.start_date,
+                    start_hour: form.start_hour,
+                    start_minute: form.start_minute,
+                    end_date: form.end_date,
+                    end_hour: form.end_hour,
+                    end_minute: form.end_minute,
+                });
+                // 少し遅延させてからリダイレクト（リダイレクト処理が完了してから）
+                setTimeout(() => {
+                    window.location.href = route('work-records.create') + '?' + params.toString();
+                }, 100);
+            } else {
+                // 続けて登録しない場合は一覧ページにリダイレクト
+                setTimeout(() => {
+                    window.location.href = route('work-records.index');
+                }, 100);
+            }
+        },
+    });
 };
 </script>
 
@@ -276,13 +417,53 @@ const submit = () => {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- 作業開始時刻 -->
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">作業開始時刻 *</label>
-                                <input
-                                    v-model="form.start_time"
-                                    type="datetime-local"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                                    :class="{ 'border-red-500': form.errors.start_time }"
-                                />
+                                <label class="block text-sm font-medium text-gray-700 mb-2">作業開始時刻 *</label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <!-- 日付 -->
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">日付</label>
+                                        <input
+                                            v-model="form.start_date"
+                                            type="date"
+                                            class="block w-full rounded-md border-gray-300 shadow-sm text-sm"
+                                            :class="{ 'border-red-500': form.errors.start_time }"
+                                        />
+                                    </div>
+                                    <!-- 時間 -->
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">時間</label>
+                                        <select
+                                            v-model="form.start_hour"
+                                            class="block w-full rounded-md border-gray-300 shadow-sm text-sm"
+                                            :class="{ 'border-red-500': form.errors.start_time }"
+                                        >
+                                            <option
+                                                v-for="h in Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))"
+                                                :key="h"
+                                                :value="h"
+                                            >
+                                                {{ h }}
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <!-- 分 -->
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">分</label>
+                                        <select
+                                            v-model="form.start_minute"
+                                            class="block w-full rounded-md border-gray-300 shadow-sm text-sm"
+                                            :class="{ 'border-red-500': form.errors.start_time }"
+                                        >
+                                            <option
+                                                v-for="m in minuteOptions"
+                                                :key="m"
+                                                :value="m"
+                                            >
+                                                {{ m }}
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <p v-if="form.errors.start_time" class="mt-1 text-sm text-red-600">
                                     {{ form.errors.start_time }}
                                 </p>
@@ -290,13 +471,53 @@ const submit = () => {
 
                             <!-- 作業終了時刻 -->
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">作業終了時刻 *</label>
-                                <input
-                                    v-model="form.end_time"
-                                    type="datetime-local"
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                                    :class="{ 'border-red-500': form.errors.end_time }"
-                                />
+                                <label class="block text-sm font-medium text-gray-700 mb-2">作業終了時刻 *</label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <!-- 日付 -->
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">日付</label>
+                                        <input
+                                            v-model="form.end_date"
+                                            type="date"
+                                            class="block w-full rounded-md border-gray-300 shadow-sm text-sm"
+                                            :class="{ 'border-red-500': form.errors.end_time }"
+                                        />
+                                    </div>
+                                    <!-- 時間 -->
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">時間</label>
+                                        <select
+                                            v-model="form.end_hour"
+                                            class="block w-full rounded-md border-gray-300 shadow-sm text-sm"
+                                            :class="{ 'border-red-500': form.errors.end_time }"
+                                        >
+                                            <option
+                                                v-for="h in Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))"
+                                                :key="h"
+                                                :value="h"
+                                            >
+                                                {{ h }}
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <!-- 分 -->
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">分</label>
+                                        <select
+                                            v-model="form.end_minute"
+                                            class="block w-full rounded-md border-gray-300 shadow-sm text-sm"
+                                            :class="{ 'border-red-500': form.errors.end_time }"
+                                        >
+                                            <option
+                                                v-for="m in minuteOptions"
+                                                :key="m"
+                                                :value="m"
+                                            >
+                                                {{ m }}
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <p v-if="form.errors.end_time" class="mt-1 text-sm text-red-600">
                                     {{ form.errors.end_time }}
                                 </p>

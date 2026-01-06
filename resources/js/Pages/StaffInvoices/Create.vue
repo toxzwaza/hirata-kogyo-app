@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import { onMounted } from 'vue';
 
 const props = defineProps({
     staffList: Array,
@@ -10,6 +11,31 @@ const form = useForm({
     staff_id: '',
     period_from: '',
     period_to: '',
+});
+
+// 日付をYYYY-MM-DD形式にフォーマット
+const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+// 初期日付を設定
+const setInitialDates = () => {
+    const now = new Date();
+    
+    // 今月の20日を終了日として設定
+    const periodTo = new Date(now.getFullYear(), now.getMonth(), 20);
+    form.period_to = formatDate(periodTo);
+    
+    // 前月の21日を開始日として設定
+    const periodFrom = new Date(now.getFullYear(), now.getMonth() - 1, 21);
+    form.period_from = formatDate(periodFrom);
+};
+
+onMounted(() => {
+    setInitialDates();
 });
 
 const submit = () => {

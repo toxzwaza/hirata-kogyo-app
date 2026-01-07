@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 
 const props = defineProps({
     staffInvoices: Array,
@@ -16,6 +16,34 @@ const form = useForm({
 
 const periodFrom = ref(props.filters?.period_from || '');
 const periodTo = ref(props.filters?.period_to || '');
+
+// 日付をYYYY-MM-DD形式にフォーマット
+const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+// 初期日付を設定
+const setInitialDates = () => {
+    // フォームの期間が未設定の場合のみ自動設定
+    if (!form.period_from || !form.period_to) {
+        const now = new Date();
+        
+        // 今月の20日を終了日として設定
+        const periodTo = new Date(now.getFullYear(), now.getMonth(), 20);
+        form.period_to = formatDate(periodTo);
+        
+        // 前月の21日を開始日として設定
+        const periodFrom = new Date(now.getFullYear(), now.getMonth() - 1, 21);
+        form.period_from = formatDate(periodFrom);
+    }
+};
+
+onMounted(() => {
+    setInitialDates();
+});
 
 const applyPeriodFilter = () => {
     router.get(route('client-invoices.create'), {
@@ -48,7 +76,7 @@ const selectedTotal = computed(() => {
         .reduce((sum, invoice) => sum + parseFloat(invoice.total), 0);
 });
 
-const formatDate = (date) => {
+const formatDateForDisplay = (date) => {
     if (!date) return '';
     return new Date(date).toLocaleDateString('ja-JP');
 };
@@ -191,7 +219,7 @@ const submit = () => {
                                                     <span class="text-xs text-gray-500">{{ staffInvoice.staff.staff_type.name }}</span>
                                                 </td>
                                                 <td class="px-4 py-2 text-sm text-gray-900">
-                                                    {{ formatDate(staffInvoice.period_from) }} ～ {{ formatDate(staffInvoice.period_to) }}
+                                                    {{ formatDateForDisplay(staffInvoice.period_from) }} ～ {{ formatDateForDisplay(staffInvoice.period_to) }}
                                                 </td>
                                                 <td class="px-4 py-2 text-sm text-gray-900 text-right">
                                                     ¥{{ formatNumber(staffInvoice.total) }}

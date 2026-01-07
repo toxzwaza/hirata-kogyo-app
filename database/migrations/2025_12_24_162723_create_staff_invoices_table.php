@@ -21,7 +21,7 @@ return new class extends Migration
             $table->date('period_from')->comment('請求期間開始');
             $table->date('period_to')->comment('請求期間終了');
             $table->decimal('subtotal', 12, 2)->comment('小計');
-            $table->decimal('tax', 12, 2)->comment('消費税');
+            $table->decimal('tax', 12, 2)->nullable()->comment('消費税');
             $table->decimal('total', 12, 2)->comment('合計金額');
             $table->enum('status', ['draft', 'fixed', 'paid'])->comment('ステータス');
             $table->timestamps();

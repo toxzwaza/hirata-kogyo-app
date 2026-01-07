@@ -94,14 +94,14 @@ class StaffInvoiceService
             }
 
             // 消費税を計算（課税区分に応じて）
-            $tax = 0;
+            $tax = null;
             if ($staff->tax_type === 'taxable') {
                 // 消費税率10%（将来的に設定可能にする）
                 $taxRate = 0.1;
                 $tax = floor($subtotal * $taxRate);
             }
 
-            $total = $subtotal + $tax;
+            $total = round($subtotal + ($tax ?? 0), 0);
 
             // 請求書の金額を更新
             $invoice->update([

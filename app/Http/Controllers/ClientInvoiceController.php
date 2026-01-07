@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Models\StaffInvoice;
 use App\Services\ClientInvoiceService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Mpdf\Mpdf;
 
@@ -170,10 +171,53 @@ class ClientInvoiceController extends Controller
     }
 
     /**
+     * 請求書削除処理
+     */
+    public function destroy(ClientInvoice $clientInvoice)
+    {
+        try {
+            // 下書き状態の場合のみ削除可能
+            if ($clientInvoice->status !== 'draft') {
+                return back()->withErrors([
+                    'error' => '下書き状態の請求書のみ削除できます。'
+                ]);
+            }
+
+            DB::beginTransaction();
+            try {
+                // 関連するスタッフ請求書との紐付を削除
+                $clientInvoice->staffInvoiceItems()->delete();
+
+                // 請求書を削除
+                $clientInvoice->delete();
+
+                DB::commit();
+
+                return redirect()->route('client-invoices.index')
+                    ->with('success', '請求書を削除しました。');
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+        } catch (\Exception $e) {
+            return back()->withErrors([
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
      * PDF出力
      */
     public function pdf(ClientInvoice $clientInvoice)
     {
+        // 確定状態の場合のみPDF出力可能
+        if (!$clientInvoice->isFixed()) {
+            return back()->withErrors([
+                'error' => '確定済みの請求書のみPDF出力できます。'
+            ]);
+        }
+
         $clientInvoice->load([
             'client',
             'staffInvoiceItems.staffInvoice.staff.staffType',
@@ -181,6 +225,34 @@ class ClientInvoiceController extends Controller
             'staffInvoiceItems.staffInvoice.details.workRecord.workMethod',
             'staffInvoiceItems.staffInvoice.details.workRecord.workRate',
         ]);
+
+        // スタッフごとの合計金額を計算（二枚目以降の合計を四捨五入した値）
+        $staffTotals = [];
+        foreach ($clientInvoice->staffInvoiceItems as $item) {
+            $staffInvoice = $item->staffInvoice;
+            $staffName = $staffInvoice->staff->name ?? '';
+            
+            if (!isset($staffTotals[$staffName])) {
+                // そのスタッフの作業実績の合計を計算
+                $sum = 0;
+                foreach ($staffInvoice->details as $detail) {
+                    $workRecord = $detail->workRecord;
+                    $drawing = $workRecord->drawing;
+                    $workRate = $workRecord->workRate;
+                    
+                    $quantity = ($workRecord->quantity_good ?? 0) + ($workRecord->quantity_ng ?? 0);
+                    $weightPerUnit = $drawing->weight_per_unit ?? 0;
+                    $totalWeight = $quantity * $weightPerUnit;
+                    $unitPrice = $workRate->rate_employee ?? 0;
+                    $amount = $totalWeight * $unitPrice;
+                    
+                    $sum += $amount;
+                }
+                
+                // 小数点第一位で四捨五入して整数にする
+                $staffTotals[$staffName] = round($sum, 0);
+            }
+        }
 
         // 一枚目の客先請求書用アイテム（スタッフごとの集約）
         $clientItems = [];
@@ -202,8 +274,8 @@ class ClientInvoiceController extends Controller
             $staffName = $staff->name ?? '';
             $name = "{$workMethodName} {$staffName}";
             
-            // 金額（税抜き）
-            $amount = (float)($staffInvoice->subtotal ?? 0);
+            // 金額（二枚目以降の合計を四捨五入した値を使用）
+            $amount = $staffTotals[$staffName] ?? 0;
             
             $clientItems[] = [
                 'date' => $date,
@@ -211,6 +283,12 @@ class ClientInvoiceController extends Controller
                 'amount' => $amount,
             ];
         }
+
+        // 一枚目の小計・消費税・合計を計算（clientItemsの合計から）
+        $subtotalForInvoice = array_sum(array_column($clientItems, 'amount'));
+        $taxForInvoice = floor($subtotalForInvoice * 0.1); // 消費税10%、小数点以下切り捨て
+        $adjustmentAmount = $clientInvoice->adjustment_amount ?? 0;
+        $totalForInvoice = $subtotalForInvoice + $taxForInvoice + $adjustmentAmount;
 
         // MPDFの設定
         $mpdf = new Mpdf([
@@ -238,6 +316,9 @@ class ClientInvoiceController extends Controller
             'clientPostal' => '',
             'clientAddress' => '',
             'clientItems' => $clientItems,
+            'calculatedSubtotal' => $subtotalForInvoice,
+            'calculatedTax' => $taxForInvoice,
+            'calculatedTotal' => $totalForInvoice,
         ])->render();
         
         $mpdf->WriteHTML($html1);
@@ -303,7 +384,8 @@ class ClientInvoiceController extends Controller
 
         // 各スタッフごとにページを追加
         foreach ($staffGroups as $staffName => $workItems) {
-            $totalAmount = array_sum(array_column($workItems, 'amount'));
+            // 二枚目以降の合計を小数点第一位で四捨五入して整数にする
+            $totalAmount = round(array_sum(array_column($workItems, 'amount')), 0);
             
             $mpdf->AddPage();
             

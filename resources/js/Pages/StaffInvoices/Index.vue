@@ -39,6 +39,7 @@ const formatDate = (date) => {
 };
 
 const formatNumber = (num) => {
+    if (num === null || num === undefined) return '-';
     return new Intl.NumberFormat('ja-JP').format(num);
 };
 
@@ -191,7 +192,10 @@ const getStatusClass = (status) => {
                                     ¥{{ formatNumber(invoice.subtotal) }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    ¥{{ formatNumber(invoice.tax) }}
+                                    <span v-if="invoice.tax !== null && invoice.tax !== undefined">
+                                        ¥{{ formatNumber(invoice.tax) }}
+                                    </span>
+                                    <span v-else>-</span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     ¥{{ formatNumber(invoice.total) }}

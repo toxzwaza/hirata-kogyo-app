@@ -9,7 +9,10 @@
     <div class="top">
       <!-- 請求先 -->
       <div class="client">
-        <p class="client-name">{{ client.name }} 御中</p>
+        <p class="client-name" v-if="type === 'client'">株式会社アキオカ 御中</p>
+        <p class="client-name" v-else-if="type === 'client-detail'">株式会社平田工業 {{ client.name }}</p>
+        <p class="client-name" v-else-if="type === 'staff'">{{ client.name }} 御中</p>
+        <p class="client-name" v-else>{{ client.name }} 御中</p>
         <p v-if="client.postal">〒{{ client.postal }}</p>
         <p v-if="client.address">{{ client.address }}</p>
       </div>
@@ -21,18 +24,18 @@
             <th>発行日</th>
             <td>{{ invoice.issueDate }}</td>
           </tr>
-          <tr>
+          <tr v-if="type !== 'client-detail'">
             <th>請求書No.</th>
             <td>{{ invoice.number }}</td>
           </tr>
-          <tr>
+          <tr v-if="type !== 'client-detail'">
             <th>支払期限</th>
             <td>{{ invoice.dueDate }}</td>
           </tr>
         </table>
       </div>
     </div>
-    <p class="message">下記のとおり、御請求申し上げます。</p>
+    <p v-if="type !== 'client-detail'" class="message">下記のとおり、御請求申し上げます。</p>
 
     <!-- 概要 -->
     <div class="summary">
@@ -41,7 +44,7 @@
           <th>件名</th>
           <td>{{ invoice.title }}</td>
         </tr>
-        <tr v-if="invoice.bank">
+        <tr v-if="type !== 'client-detail' && invoice.bank">
           <th>振込先</th>
           <td>{{ invoice.bank }}</td>
         </tr>
@@ -49,14 +52,18 @@
     </div>
 
     <!-- 事業者 -->
-    <div class="issuer">
+    <div v-if="type !== 'client-detail'" class="issuer">
       <p class="issuer-name">{{ issuer.name }}</p>
-      <p>〒{{ issuer.postal }}</p>
-      <p>{{ issuer.address1 }}</p>
+      <p v-if="issuer.postal">〒{{ issuer.postal }}</p>
+      <p v-if="issuer.address1">{{ issuer.address1 }}</p>
       <p v-if="issuer.address2">{{ issuer.address2 }}</p>
-      <p>TEL：{{ issuer.tel }}</p>
-      <p>担当：{{ issuer.person }}</p>
-      <img class="issuer-logo" src="/storage/stamp/hanko.png" alt="印鑑" />
+      <p v-if="issuer.tel">TEL：{{ issuer.tel }}</p>
+      <p v-if="issuer.person">担当：{{ issuer.person }}</p>
+      <p v-if="issuer.registrationNumber">登録番号：{{ issuer.registrationNumber }}</p>
+      <p v-if="issuer.bank">取引銀行：{{ issuer.bank }}</p>
+      <p v-if="issuer.bankBranch">{{ issuer.bankBranch }}</p>
+      <p v-if="issuer.bankAccount">{{ issuer.bankAccount }}</p>
+      <img v-if="type !== 'staff'" class="issuer-logo" src="/storage/stamp/hanko.png" alt="印鑑" />
     </div>
 
     <!-- 合計 -->
@@ -110,15 +117,15 @@
         <!-- 小計・消費税・合計行 -->
         <tr v-if="clientItems.length > 0" class="summary-row">
           <td colspan="2" class="text-right font-bold">小計</td>
-          <td class="amount font-bold">¥{{ formatNumber(invoice.subtotal || subtotalAmount) }}</td>
+          <td class="amount font-bold">¥{{ formatNumber(subtotalAmount) }}</td>
         </tr>
         <tr v-if="clientItems.length > 0" class="summary-row">
           <td colspan="2" class="text-right font-bold">消費税(10%)</td>
-          <td class="amount font-bold">¥{{ formatNumber(invoice.tax || 0) }}</td>
+          <td class="amount font-bold">¥{{ formatNumber(taxAmount) }}</td>
         </tr>
         <tr v-if="clientItems.length > 0" class="summary-row">
           <td colspan="2" class="text-right font-bold">合計</td>
-          <td class="amount font-bold">¥{{ formatNumber(invoice.total || totalAmountWithTax) }}</td>
+          <td class="amount font-bold">¥{{ formatNumber(totalAmountWithTax) }}</td>
         </tr>
       </tbody>
     </table>
@@ -198,15 +205,25 @@ const formatNumber = (num) => {
 };
 
 const totalAmount = computed(() => {
-  if (props.type === 'staff' || props.type === 'client-detail') {
-    return props.workItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  if (props.type === 'staff') {
+    // スタッフ請求書の場合は、バックエンドから渡されたtotal（四捨五入済み）を優先使用
+    if (props.invoice?.total !== undefined && props.invoice?.total !== null) {
+      return Math.round(props.invoice.total);
+    }
+    // フォールバック: workItemsから計算
+    return Math.round(props.workItems.reduce((sum, item) => sum + Number(item.amount || 0), 0));
+  } else if (props.type === 'client-detail') {
+    // 二枚目以降の合計を小数点第一位で四捨五入して整数にする
+    const sum = props.workItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    return Math.round(sum);
   } else if (props.type === 'client') {
-    return props.clientItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    // 客先請求書の場合は、小計 + 消費税 + 差額調整を返す
+    return totalAmountWithTax.value;
   }
   return 0;
 });
 
-// 客先請求書の小計（税抜き）
+// 客先請求書の小計（税抜き）- clientItemsの合計（四捨五入済み）から計算
 const subtotalAmount = computed(() => {
   if (props.type === 'client') {
     return props.clientItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
@@ -214,12 +231,22 @@ const subtotalAmount = computed(() => {
   return 0;
 });
 
+// 客先請求書の消費税（小計から計算、10%）
+const taxAmount = computed(() => {
+  if (props.type === 'client') {
+    const subtotal = subtotalAmount.value;
+    // 消費税を計算（10%）、小数点以下切り捨て
+    return Math.floor(subtotal * 0.1);
+  }
+  return 0;
+});
+
 // 客先請求書の合計（小計 + 消費税 + 差額調整）
 const totalAmountWithTax = computed(() => {
   if (props.type === 'client') {
-    const subtotal = props.invoice?.subtotal || subtotalAmount.value;
-    const tax = props.invoice?.tax || 0;
-    const adjustment = props.invoice?.adjustment_amount || 0;
+    const subtotal = Number(subtotalAmount.value) || 0;
+    const tax = Number(taxAmount.value) || 0;
+    const adjustment = Number(props.invoice?.adjustment_amount) || 0;
     return subtotal + tax + adjustment;
   }
   return 0;
@@ -734,7 +761,7 @@ const tableClass = computed(() => {
 }
 
 .remarks-box {
-  border: 1px dashed #000;
+  border: 1px solid #000;
   min-height: 45px;
   padding: 5px;
   white-space: pre-wrap;

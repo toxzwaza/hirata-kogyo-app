@@ -245,7 +245,7 @@
         }
 
         .remarks-box {
-            border: 1px dashed #000;
+            border: 1px solid #000;
             min-height: 45px;
             padding: 5px;
             white-space: pre-wrap;
@@ -264,13 +264,9 @@
         <div class="top">
             <!-- 請求先 -->
             <div class="client">
-                <p class="client-name">{{ $invoice->staff->name }} 御中</p>
-                @if($invoice->staff->postal_code)
-                    <p>〒{{ $invoice->staff->postal_code }}</p>
-                @endif
-                @if($invoice->staff->address)
-                    <p>{{ $invoice->staff->address }}</p>
-                @endif
+                <p class="client-name">株式会社平田工業 御中</p>
+                <p>〒710-1313</p>
+                <p>岡山県倉敷市真備町川辺233-1</p>
             </div>
 
             <!-- 発行情報 -->
@@ -311,11 +307,16 @@
 
         <!-- 事業者 -->
         <div class="issuer">
-            <p class="issuer-name">株式会社○○</p>
-            <p>〒710-1313</p>
-            <p>岡山県倉敷市真備町川辺233-1</p>
-            <p>TEL：080-8071-0566</p>
-            <p>担当：平田 敦士</p>
+            <p class="issuer-name">{{ $invoice->staff->name }}</p>
+            @if($invoice->staff->postal_code)
+                <p>〒{{ $invoice->staff->postal_code }}</p>
+            @endif
+            @if($invoice->staff->address)
+                <p>{{ $invoice->staff->address }}</p>
+            @endif
+            @if($invoice->staff->phone)
+                <p>TEL：{{ $invoice->staff->phone }}</p>
+            @endif
         </div>
 
         <!-- 合計 -->

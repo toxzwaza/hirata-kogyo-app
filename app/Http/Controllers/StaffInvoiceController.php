@@ -7,6 +7,7 @@ use App\Models\StaffInvoice;
 use App\Models\Staff;
 use App\Services\StaffInvoiceService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Mpdf\Mpdf;
 
@@ -122,6 +123,49 @@ class StaffInvoiceController extends Controller
 
             return redirect()->route('staff-invoices.show', $staffInvoice)
                 ->with('success', '請求書を確定しました。');
+        } catch (\Exception $e) {
+            return back()->withErrors([
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * 請求書削除処理
+     */
+    public function destroy(StaffInvoice $staffInvoice)
+    {
+        try {
+            // 下書き状態の場合のみ削除可能
+            if ($staffInvoice->status !== 'draft') {
+                return back()->withErrors([
+                    'error' => '下書き状態の請求書のみ削除できます。'
+                ]);
+            }
+
+            // 客先請求書に紐付いている場合は削除不可
+            if ($staffInvoice->clientInvoiceItems()->exists()) {
+                return back()->withErrors([
+                    'error' => '客先請求書に紐付いているため削除できません。'
+                ]);
+            }
+
+            DB::beginTransaction();
+            try {
+                // 関連する明細を削除
+                $staffInvoice->details()->delete();
+
+                // 請求書を削除
+                $staffInvoice->delete();
+
+                DB::commit();
+
+                return redirect()->route('staff-invoices.index')
+                    ->with('success', '請求書を削除しました。');
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
         } catch (\Exception $e) {
             return back()->withErrors([
                 'error' => $e->getMessage()

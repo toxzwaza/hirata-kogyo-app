@@ -271,7 +271,7 @@
         }
 
         .remarks-box {
-            border: 1px dashed #000;
+            border: 1px solid #000;
             min-height: 45px;
             padding: 5px;
             white-space: pre-wrap;
@@ -303,7 +303,13 @@
         <div class="top">
             <!-- 請求先 -->
             <div class="client">
-                <p class="client-name">{{ $clientName }} 御中</p>
+                @if($type === 'client')
+                    <p class="client-name">株式会社アキオカ 御中</p>
+                @elseif($type === 'client-detail')
+                    <p class="client-name">株式会社平田工業 {{ $clientName }}</p>
+                @else
+                    <p class="client-name">{{ $clientName }} 御中</p>
+                @endif
                 @if($clientPostal)
                     <p>〒{{ $clientPostal }}</p>
                 @endif
@@ -319,6 +325,7 @@
                         <th>発行日</th>
                         <td>{{ $invoice->issue_date ? $invoice->issue_date->format('Y年n月j日') : '' }}</td>
                     </tr>
+                    @if($type !== 'client-detail')
                     <tr>
                         <th>請求書No.</th>
                         <td>{{ $invoice->invoice_number }}</td>
@@ -327,10 +334,13 @@
                         <th>支払期限</th>
                         <td>{{ $invoice->issue_date ? $invoice->issue_date->copy()->addDays(30)->format('Y年n月j日') : '' }}</td>
                     </tr>
+                    @endif
                 </table>
             </div>
         </div>
+        @if($type !== 'client-detail')
         <p class="message">下記のとおり、御請求申し上げます。</p>
+        @endif
 
         <!-- 概要 -->
         <div class="summary">
@@ -344,19 +354,24 @@
 
         <!-- 事業者 -->
         <div class="issuer">
-            <p class="issuer-name">株式会社○○</p>
+            <p class="issuer-name">株式会社平田工業</p>
             <p>〒710-1313</p>
             <p>岡山県倉敷市真備町川辺233-1</p>
             <p>TEL：080-8071-0566</p>
             <p>担当：平田 敦士</p>
+            <p>登録番号：T4260001040131</p>
+            <p>取引銀行：おかやま信用金庫</p>
+            <p>妹尾支店　店番170</p>
+            <p>口座番号　0600264</p>
         </div>
+        @endif
 
         <!-- 一枚目: 客先請求書（スタッフごとの集約） -->
         @if($type === 'client')
             <!-- 合計 -->
             <div class="total-box">
                 <span>合計</span>
-                <span class="total-amount">¥{{ number_format($invoice->total, 0) }}</span>
+                <span class="total-amount">¥{{ number_format($calculatedTotal ?? $invoice->total, 0) }}</span>
             </div>
 
             <!-- 明細 -->
@@ -380,11 +395,11 @@
                     @if(count($clientItems) > 0)
                         <tr class="summary-row">
                             <td colspan="2" class="text-right">小計</td>
-                            <td class="amount">¥{{ number_format($invoice->subtotal, 0) }}</td>
+                            <td class="amount">¥{{ number_format($calculatedSubtotal ?? $invoice->subtotal, 0) }}</td>
                         </tr>
                         <tr class="summary-row">
                             <td colspan="2" class="text-right">消費税(10%)</td>
-                            <td class="amount">¥{{ number_format($invoice->tax, 0) }}</td>
+                            <td class="amount">¥{{ number_format($calculatedTax ?? $invoice->tax, 0) }}</td>
                         </tr>
                         @if($invoice->adjustment_amount != 0)
                             <tr class="summary-row">
@@ -394,7 +409,7 @@
                         @endif
                         <tr class="summary-row">
                             <td colspan="2" class="text-right">合計</td>
-                            <td class="amount">¥{{ number_format($invoice->total, 0) }}</td>
+                            <td class="amount">¥{{ number_format($calculatedTotal ?? $invoice->total, 0) }}</td>
                         </tr>
                     @endif
                 </tbody>

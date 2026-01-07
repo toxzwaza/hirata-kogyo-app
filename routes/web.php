@@ -47,7 +47,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/staff-invoices/{staff_invoice}/pdf', [StaffInvoiceController::class, 'pdf'])->name('staff-invoices.pdf');
 
     // 客先請求書管理
-    Route::resource('client-invoices', ClientInvoiceController::class)->except(['edit', 'update', 'destroy']);
+    Route::resource('client-invoices', ClientInvoiceController::class)->except(['edit', 'update']);
     Route::post('/client-invoices/{client_invoice}/update-adjustment', [ClientInvoiceController::class, 'updateAdjustment'])->name('client-invoices.update-adjustment');
     Route::post('/client-invoices/{client_invoice}/fix', [ClientInvoiceController::class, 'fix'])->name('client-invoices.fix');
     Route::get('/client-invoices/{client_invoice}/pdf', [ClientInvoiceController::class, 'pdf'])->name('client-invoices.pdf');

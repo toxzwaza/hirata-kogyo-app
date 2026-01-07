@@ -27,8 +27,8 @@ return new class extends Migration
             $table->string('tel')->nullable()->comment('電話番号');
             $table->string('email')->nullable()->comment('メールアドレス');
             $table->enum('tax_type', ['taxable', 'tax_exempt'])->comment('課税区分');
-
             $table->date('birth_date')->nullable()->comment('生年月日');
+            
             $table->boolean('active_flag')->default(true)->comment('有効フラグ');
             $table->timestamps();
         });

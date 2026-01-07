@@ -23,6 +23,7 @@ const formatDateTime = (dateTime) => {
 };
 
 const formatNumber = (num) => {
+    if (num === null || num === undefined) return '-';
     return new Intl.NumberFormat('ja-JP').format(num);
 };
 
@@ -32,24 +33,35 @@ const fixInvoice = () => {
     }
 };
 
+const deleteInvoice = () => {
+    if (confirm('この請求書を削除しますか？この操作は取り消せません。')) {
+        router.delete(route('staff-invoices.destroy', props.invoice.id), {
+            onSuccess: () => {
+                router.visit(route('staff-invoices.index'));
+            },
+        });
+    }
+};
+
 const downloadPdf = () => {
     window.location.href = route('staff-invoices.pdf', props.invoice.id);
 };
 
 // Invoice.vueに渡すためのデータを準備
+// スタッフ請求書の場合、client（請求先）は株式会社平田工業、issuer（発行元）はスタッフ情報
 const invoiceClient = computed(() => ({
-    name: props.invoice.staff?.name || '',
-    postal: props.invoice.staff?.postal_code || '',
-    address: props.invoice.staff?.address || '',
+    name: '株式会社平田工業',
+    postal: '710-1313',
+    address: '岡山県倉敷市真備町川辺233-1',
 }));
 
 const invoiceIssuer = computed(() => ({
-    name: '株式会社○○',
-    postal: '710-1313',
-    address1: '岡山県倉敷市真備町川辺233-1',
+    name: props.invoice.staff?.name || '',
+    postal: props.invoice.staff?.postal_code || '',
+    address1: props.invoice.staff?.address || '',
     address2: '',
-    tel: '080-8071-0566',
-    person: '平田 敦士',
+    tel: props.invoice.staff?.phone || '',
+    person: '',
 }));
 
 const invoiceData = computed(() => {
@@ -67,6 +79,9 @@ const invoiceData = computed(() => {
             ? `${props.invoice.staff.bank_name} ${props.invoice.staff.branch_name || ''} ${props.invoice.staff.account_type || ''} ${props.invoice.staff.account_number || ''}`.trim()
             : '',
         remarks: '',
+        total: props.invoice.total || 0,
+        subtotal: props.invoice.subtotal || 0,
+        tax: props.invoice.tax || 0,
     };
 });
 
@@ -132,14 +147,22 @@ const workItems = computed(() => {
                 <div class="flex gap-2">
                     <button
                         v-if="invoice.status === 'draft'"
+                        @click="deleteInvoice"
+                        class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                    >
+                        削除
+                    </button>
+                    <button
+                        v-if="invoice.status === 'draft'"
                         @click="fixInvoice"
                         class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
                     >
                         確定
                     </button>
                     <button
+                        v-if="invoice.status === 'fixed' || invoice.status === 'paid'"
                         @click="downloadPdf"
-                        class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
                     >
                         PDF出力
                     </button>

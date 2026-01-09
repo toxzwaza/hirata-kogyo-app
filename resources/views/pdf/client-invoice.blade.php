@@ -353,6 +353,7 @@
         </div>
 
         <!-- 事業者 -->
+        @if($type !== 'client-detail')
         <div class="issuer">
             <p class="issuer-name">株式会社平田工業</p>
             <p>〒710-1313</p>

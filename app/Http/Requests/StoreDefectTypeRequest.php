@@ -36,3 +36,4 @@ class StoreDefectTypeRequest extends FormRequest
 
 
 
+

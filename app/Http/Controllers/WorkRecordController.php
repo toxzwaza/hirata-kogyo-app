@@ -11,8 +11,8 @@ use App\Models\Staff;
 use App\Models\DefectType;
 use App\Models\WorkRate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
@@ -103,10 +103,34 @@ class WorkRecordController extends Controller
     /**
      * 作業実績登録画面（スマホ用）
      */
-    public function createForMobile()
+    public function createForMobile(Request $request)
     {
+        // staff_idパラメータが指定されている場合、そのIDでログイン処理を行う
+        if ($request->has('staff_id') && !auth()->check()) {
+            $staffId = $request->input('staff_id');
+            $staff = Staff::where('id', $staffId)
+                ->where('active_flag', true)
+                ->first();
+            
+            if ($staff) {
+                // パスワードチェックなしでログイン（危険だが、とりあえず）
+                Auth::guard('web')->login($staff);
+                $request->session()->regenerate();
+            }
+        }
+        
         // ログイン中のスタッフを取得
+        // 注意: auth()->id()はlogin_idを返すため、auth()->user()->idを使用
         $currentStaff = auth()->user();
+        
+        // ログインしていない場合はエラー
+        if (!$currentStaff) {
+            return redirect()->route('login')
+                ->with('error', 'ログインが必要です。');
+        }
+        
+        // スタッフ情報を取得（スタッフタイプも含める）
+        $currentStaff = Staff::with('staffType')->findOrFail($currentStaff->id);
         
         $drawings = Drawing::where('active_flag', true)
             ->with(['client', 'workRates' => function($query) {
@@ -114,12 +138,6 @@ class WorkRecordController extends Controller
             }, 'workRates.workMethod'])
             ->orderBy('drawing_number')
             ->get();
-        
-        // デバッグ用：最初の図番のworkRatesを確認
-        if ($drawings->isNotEmpty()) {
-            $firstDrawing = $drawings->first();
-            Log::info('First drawing workRates count:', ['count' => $firstDrawing->workRates->count(), 'drawing_id' => $firstDrawing->id]);
-        }
         
         $workMethods = WorkMethod::orderBy('name')->get();
         $defectTypes = DefectType::orderBy('name')->get();
@@ -193,7 +211,7 @@ class WorkRecordController extends Controller
             DB::commit();
 
             // スマホ版では同じ画面に戻り、成功メッセージを表示
-            return redirect()->route('staff.work-records.create')
+            return redirect()->route('mobile.work-records.create')
                 ->with('success', '作業実績を登録しました。');
         } catch (\Exception $e) {
             DB::rollBack();

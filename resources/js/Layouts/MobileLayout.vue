@@ -16,6 +16,7 @@ defineProps({
                     <Link
                         :href="route('logout')"
                         method="post"
+                        as="button"
                         class="text-sm text-gray-600 hover:text-gray-900"
                     >
                         ログアウト
@@ -30,6 +31,7 @@ defineProps({
         </main>
     </div>
 </template>
+
 
 
 

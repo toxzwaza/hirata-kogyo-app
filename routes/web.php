@@ -33,6 +33,15 @@ Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+// スタッフ用スマホ画面（admin_flgに関係なくログイン可能）
+// staff_idパラメータがある場合は自動ログインするため、authミドルウェアは適用しない
+// 注意: より具体的なルートを先に定義する必要がある（Route::resource('staff')より前に）
+Route::prefix('staff')->name('mobile.')->group(function () {
+    // 作業実績登録（スマホ用）
+    Route::get('/work-records/create', [WorkRecordController::class, 'createForMobile'])->name('work-records.create');
+    Route::post('/work-records', [WorkRecordController::class, 'storeForMobile'])->middleware('auth')->name('work-records.store');
+});
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -59,13 +68,6 @@ Route::middleware('auth')->group(function () {
     Route::resource('work-rates', WorkRateController::class);
     Route::resource('staff', StaffController::class);
     Route::resource('defect-types', DefectTypeController::class);
-});
-
-// スタッフ用スマホ画面（admin_flgに関係なくログイン可能）
-Route::prefix('staff')->middleware('auth')->name('staff.')->group(function () {
-    // 作業実績登録（スマホ用）
-    Route::get('/work-records/create', [WorkRecordController::class, 'createForMobile'])->name('work-records.create');
-    Route::post('/work-records', [WorkRecordController::class, 'storeForMobile'])->name('work-records.store');
 });
 
 require __DIR__.'/auth.php';

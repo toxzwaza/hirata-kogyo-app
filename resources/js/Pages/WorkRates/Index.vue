@@ -137,6 +137,9 @@ const formatNumber = (num) => {
                                     図番
                                 </th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    品名
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     作業方法
                                 </th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -161,6 +164,9 @@ const formatNumber = (num) => {
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {{ rate.drawing.drawing_number }}<br>
                                     <span class="text-xs text-gray-500">{{ rate.drawing.client.name }}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ rate.drawing.product_name }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {{ rate.work_method.name }}

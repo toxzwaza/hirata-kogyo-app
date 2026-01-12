@@ -1,11 +1,55 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
 
 const props = defineProps({
     drawings: Array,
     workMethods: Array,
 });
+
+// フィルター用のリアクティブ変数
+const drawingNumberFilter = ref('');
+
+// 図番でフィルターされた図番リスト
+const filteredDrawings = computed(() => {
+    let filtered = props.drawings;
+    
+    // 図番でフィルター（部分一致）
+    if (drawingNumberFilter.value) {
+        const searchText = drawingNumberFilter.value.toLowerCase();
+        filtered = filtered.filter(d => 
+            d.drawing_number.toLowerCase().includes(searchText)
+        );
+    }
+    
+    return filtered;
+});
+
+// 図番入力で選択された場合の処理
+const onDrawingNumberInput = (event) => {
+    const inputValue = event.target.value.trim();
+    if (!inputValue) {
+        form.drawing_id = '';
+        return;
+    }
+    
+    // 完全一致する図番を探す
+    const matchedDrawing = filteredDrawings.value.find(d => d.drawing_number === inputValue);
+    if (matchedDrawing) {
+        form.drawing_id = matchedDrawing.id;
+    } else {
+        // 完全一致しない場合は、部分一致で最初に見つかったものを設定
+        const partialMatch = filteredDrawings.value.find(d => 
+            d.drawing_number.toLowerCase().startsWith(inputValue.toLowerCase())
+        );
+        if (partialMatch && filteredDrawings.value.length === 1) {
+            form.drawing_id = partialMatch.id;
+        } else {
+            form.drawing_id = '';
+        }
+    }
+};
 
 const form = useForm({
     drawing_id: '',
@@ -39,20 +83,24 @@ const submit = () => {
                             <!-- 図番 -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">図番 *</label>
-                                <select
-                                    v-model="form.drawing_id"
+                                <input
+                                    v-model="drawingNumberFilter"
+                                    type="text"
+                                    list="drawing-number-list-create"
+                                    placeholder="図番を入力"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                                     :class="{ 'border-red-500': form.errors.drawing_id }"
-                                >
-                                    <option value="">選択してください</option>
+                                    @input="onDrawingNumberInput"
+                                />
+                                <datalist id="drawing-number-list-create">
                                     <option
-                                        v-for="drawing in drawings"
+                                        v-for="drawing in filteredDrawings"
                                         :key="drawing.id"
-                                        :value="drawing.id"
+                                        :value="drawing.drawing_number"
                                     >
                                         {{ drawing.drawing_number }} - {{ drawing.product_name }} ({{ drawing.client.name }})
                                     </option>
-                                </select>
+                                </datalist>
                                 <p v-if="form.errors.drawing_id" class="mt-1 text-sm text-red-600">
                                     {{ form.errors.drawing_id }}
                                 </p>

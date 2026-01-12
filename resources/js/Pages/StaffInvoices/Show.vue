@@ -115,9 +115,34 @@ const workItems = computed(() => {
         // 1個あたりの重量（kg）
         const weightPerUnit = drawing?.weight_per_unit || 0;
         
-        // 個単価（1個あたりの重量 × rate_contractor）
-        // rate_contractorは重量あたりの単価（円/kg）なので、1個あたりの単価を計算
-        const unitPrice = weightPerUnit * (workRate?.rate_contractor || 0);
+        // 作業開始時間をチェックして、残業単価を使用するか判定
+        let rateToUse = workRate?.rate_contractor || 0;
+        let reason = '定時';
+        
+        if (workRecord?.start_time) {
+            const startTime = new Date(workRecord.start_time);
+            const hours = startTime.getHours();
+            const minutes = startTime.getMinutes();
+            const isOvertime = hours > 17 || (hours === 17 && minutes >= 10);
+            
+            if (isOvertime) {
+                if (workRate?.rate_overtime != null) {
+                    rateToUse = workRate.rate_overtime;
+                    reason = '残業';
+                } else {
+                    reason = '残業だがrate_overtimeがNULL';
+                }
+            }
+        }
+        
+        // 使用した単価と理由をコンソールに出力
+        console.log(`[作業実績] 品番: ${drawingNumber}, 開始時間: ${workRecord?.start_time || '不明'}`);
+        console.log(`  使用単価: ${rateToUse}円/kg (理由: ${reason})`);
+        console.log(`  rate_contractor: ${workRate?.rate_contractor || 'NULL'}, rate_overtime: ${workRate?.rate_overtime ?? 'NULL'}`);
+        
+        // 個単価（1個あたりの重量 × 単価）
+        // 単価は重量あたりの単価（円/kg）なので、1個あたりの単価を計算
+        const unitPrice = weightPerUnit * rateToUse;
         
         // 金額（実績数 × 個単価）
         const amount = quantity * unitPrice;

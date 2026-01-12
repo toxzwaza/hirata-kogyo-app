@@ -206,12 +206,10 @@ const formatNumber = (num) => {
 
 const totalAmount = computed(() => {
   if (props.type === 'staff') {
-    // スタッフ請求書の場合は、バックエンドから渡されたtotal（四捨五入済み）を優先使用
-    if (props.invoice?.total !== undefined && props.invoice?.total !== null) {
-      return Math.round(props.invoice.total);
-    }
-    // フォールバック: workItemsから計算
-    return Math.round(props.workItems.reduce((sum, item) => sum + Number(item.amount || 0), 0));
+    // スタッフ請求書の場合は、workItemsから各行の金額を合計
+    // 各行の金額は正しく計算されているため、その合計を使用
+    const sum = props.workItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    return Math.round(sum);
   } else if (props.type === 'client-detail') {
     // 二枚目以降の合計を小数点第一位で四捨五入して整数にする
     const sum = props.workItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);

@@ -187,6 +187,7 @@ class StaffInvoiceController extends Controller
 
         // 作業実績データを準備
         $workItems = [];
+        $totalAmount = 0;
         foreach ($staffInvoice->details as $detail) {
             $workRecord = $detail->workRecord;
             $drawing = $workRecord->drawing;
@@ -213,11 +214,27 @@ class StaffInvoiceController extends Controller
             // 1個あたりの重量（kg）
             $weightPerUnit = $drawing->weight_per_unit ?? 0;
             
-            // 個単価（1個あたりの重量 × rate_contractor）
-            $unitPrice = $weightPerUnit * ($workRate->rate_contractor ?? 0);
+            // 作業開始時間をチェックして、残業単価を使用するか判定
+            $rateToUse = $workRate->rate_contractor ?? 0;
+            if ($workRecord->start_time) {
+                $startTime = \Carbon\Carbon::parse($workRecord->start_time);
+                $hours = $startTime->hour;
+                $minutes = $startTime->minute;
+                $isOvertime = $hours > 17 || ($hours === 17 && $minutes >= 10);
+                
+                // 17:10以降で、rate_overtimeがnullでない場合は残業単価を使用
+                if ($isOvertime && $workRate->rate_overtime !== null) {
+                    $rateToUse = $workRate->rate_overtime;
+                }
+            }
+            
+            // 個単価（1個あたりの重量 × 単価）
+            // 単価は重量あたりの単価（円/kg）なので、1個あたりの単価を計算
+            $unitPrice = $weightPerUnit * $rateToUse;
             
             // 金額（実績数 × 個単価）
             $amount = $quantity * $unitPrice;
+            $totalAmount += $amount;
             
             $workItems[] = [
                 'date' => $date,
@@ -229,11 +246,15 @@ class StaffInvoiceController extends Controller
                 'amount' => $amount,
             ];
         }
+        
+        // 合計金額を四捨五入
+        $totalAmount = round($totalAmount, 0);
 
         // BladeテンプレートをHTMLに変換
         $html = view('pdf.staff-invoice', [
             'invoice' => $staffInvoice,
             'workItems' => $workItems,
+            'totalAmount' => $totalAmount,
         ])->render();
 
         // MPDFの設定（日本語フォント対応）

@@ -322,7 +322,7 @@
         <!-- 合計 -->
         <div class="total-box">
             <span>合計</span>
-            <span class="total-amount">¥{{ number_format($invoice->total, 0) }}</span>
+            <span class="total-amount">¥{{ number_format($totalAmount ?? $invoice->total, 0) }}</span>
         </div>
 
         <!-- 明細 -->

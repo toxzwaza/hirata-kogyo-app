@@ -84,7 +84,12 @@ const getCurrentDate = () => {
 };
 
 const getCurrentHour = () => {
-    return String(new Date().getHours()).padStart(2, '0');
+    const hour = new Date().getHours();
+    // 00-05時は選択不可のため、06時に調整
+    if (hour >= 0 && hour <= 5) {
+        return '06';
+    }
+    return String(hour).padStart(2, '0');
 };
 
 const getCurrentMinute = () => {
@@ -113,7 +118,11 @@ const getUrlParams = () => {
 // 初期の終了日時を計算（開始時間+1時間、23時の場合は日付も1日進める）
 const getInitialEndDateTime = (startDate, startHour) => {
     const date = startDate || getCurrentDate();
-    const hour = startHour !== undefined ? parseInt(startHour) : parseInt(getCurrentHour());
+    let hour = startHour !== undefined ? parseInt(startHour) : parseInt(getCurrentHour());
+    // 00-05時は選択不可のため、06時に調整
+    if (hour >= 0 && hour <= 5) {
+        hour = 6;
+    }
     const endHour = (hour + 1) % 24;
     
     if (hour === 23) {
@@ -169,16 +178,25 @@ const combineDateTime = (date, hour, minute) => {
 // 開始日付・時間・分が変更されたら終了時刻を自動設定
 watch([() => form.start_date, () => form.start_hour, () => form.start_minute], () => {
     if (form.start_date && form.start_hour && form.start_minute !== undefined) {
-        const startHour = parseInt(form.start_hour) || 0;
-        const endHour = (startHour + 1) % 24;
+        let startHour = parseInt(form.start_hour) || 0;
+        // 00-05時は選択不可のため、06時に調整
+        if (startHour >= 0 && startHour <= 5) {
+            startHour = 6;
+            form.start_hour = '06';
+        }
+        let endHour = (startHour + 1) % 24;
         
-        // 開始時間+1時間を終了時間に設定
-        form.end_hour = String(endHour).padStart(2, '0');
-        // 開始分を終了分に設定
-        form.end_minute = form.start_minute;
-        
-        // 23時の場合は日付も1日進める
-        if (startHour === 23) {
+        // 終了時間が00-05時になった場合は、次の日の06時に設定
+        if (endHour >= 0 && endHour <= 5) {
+            endHour = 6;
+            const date = new Date(form.start_date);
+            date.setDate(date.getDate() + 1);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            form.end_date = `${year}-${month}-${day}`;
+        } else if (startHour === 23) {
+            // 23時の場合は日付も1日進める
             const date = new Date(form.start_date);
             date.setDate(date.getDate() + 1);
             const year = date.getFullYear();
@@ -189,6 +207,11 @@ watch([() => form.start_date, () => form.start_hour, () => form.start_minute], (
             // それ以外の場合は開始日付と同じ
             form.end_date = form.start_date;
         }
+        
+        // 開始時間+1時間を終了時間に設定
+        form.end_hour = String(endHour).padStart(2, '0');
+        // 開始分を終了分に設定
+        form.end_minute = form.start_minute;
     }
 });
 
@@ -209,6 +232,18 @@ const totalDefectQuantity = computed(() => {
 
 const isDefectQuantityValid = computed(() => {
     return totalDefectQuantity.value === form.quantity_ng;
+});
+
+// 開始時刻が17時10分以降かどうかを判定
+const isOvertimeMode = computed(() => {
+    if (!form.start_hour || form.start_minute === undefined) {
+        return false;
+    }
+    const hour = parseInt(form.start_hour) || 0;
+    const minute = parseInt(form.start_minute) || 0;
+    
+    // 17時10分以降（17時10分を含む）
+    return hour > 17 || (hour === 17 && minute >= 10);
 });
 
 // 選択された図番に関連する作業方法のみをフィルター
@@ -380,10 +415,18 @@ const submit = () => {
                 </p>
             </div>
 
-            <!-- 作業開始時刻 -->
+            <!-- 作業時刻 -->
             <div class="bg-white rounded-xl shadow-md p-5 border border-gray-200">
+                <!-- 残業時間内登録モード表示 -->
+                <div v-if="isOvertimeMode" class="bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl shadow-lg p-4 mb-6 border-2 border-orange-700">
+                    <div class="text-white text-lg font-bold text-center">
+                        残業時間内登録モード
+                    </div>
+                </div>
+                
+                <!-- 作業開始時刻 -->
                 <label class="block text-lg font-bold text-gray-800 mb-4">作業開始時刻 *</label>
-                <div class="grid grid-cols-3 gap-3">
+                <div class="grid grid-cols-3 gap-3 mb-6">
                     <!-- 日付 -->
                     <div>
                         <label class="block text-sm font-semibold text-gray-600 mb-2">日付</label>
@@ -403,7 +446,7 @@ const submit = () => {
                             :class="{ 'border-red-500': form.errors.start_time }"
                         >
                             <option
-                                v-for="h in Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))"
+                                v-for="h in Array.from({ length: 18 }, (_, i) => String(i + 6).padStart(2, '0'))"
                                 :key="h"
                                 :value="h"
                             >
@@ -429,13 +472,14 @@ const submit = () => {
                         </select>
                     </div>
                 </div>
-                <p v-if="form.errors.start_time" class="mt-2 text-base text-red-600 font-semibold">
+                <p v-if="form.errors.start_time" class="mt-2 text-base text-red-600 font-semibold mb-6">
                     {{ form.errors.start_time }}
                 </p>
-            </div>
 
-            <!-- 作業終了時刻 -->
-            <div class="bg-white rounded-xl shadow-md p-5 border border-gray-200">
+                <!-- 区切り線 -->
+                <div class="border-t-2 border-gray-300 my-6"></div>
+
+                <!-- 作業終了時刻 -->
                 <label class="block text-lg font-bold text-gray-800 mb-4">作業終了時刻 *</label>
                 <div class="grid grid-cols-3 gap-3">
                     <!-- 日付 -->
@@ -457,7 +501,7 @@ const submit = () => {
                             :class="{ 'border-red-500': form.errors.end_time }"
                         >
                             <option
-                                v-for="h in Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))"
+                                v-for="h in Array.from({ length: 18 }, (_, i) => String(i + 6).padStart(2, '0'))"
                                 :key="h"
                                 :value="h"
                             >

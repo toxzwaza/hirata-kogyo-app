@@ -60,6 +60,10 @@ class Staff extends Authenticatable
      */
     public function setPasswordAttribute($value)
     {
+        // 空の値の場合はハッシュ化しない（既存のパスワードを保持）
+        if (empty($value)) {
+            return;
+        }
         $this->attributes['password'] = Hash::make($value);
     }
 

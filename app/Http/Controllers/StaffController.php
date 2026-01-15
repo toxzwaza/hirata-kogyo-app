@@ -7,7 +7,6 @@ use App\Http\Requests\UpdateStaffRequest;
 use App\Models\Staff;
 use App\Models\StaffType;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 
 class StaffController extends Controller
@@ -54,7 +53,7 @@ class StaffController extends Controller
     public function store(StoreStaffRequest $request)
     {
         $data = $request->validated();
-        $data['password'] = Hash::make($data['password']);
+        // パスワードのハッシュ化はModelのsetPasswordAttributeで自動的に行われる
         $data['active_flag'] = $request->has('active_flag') ? $request->active_flag : true;
 
         Staff::create($data);
@@ -79,10 +78,9 @@ class StaffController extends Controller
         $data = $request->validated();
         
         // パスワードが入力されている場合のみ更新
+        // パスワードのハッシュ化はModelのsetPasswordAttributeで自動的に行われる
         if (empty($data['password'])) {
             unset($data['password']);
-        } else {
-            $data['password'] = Hash::make($data['password']);
         }
 
         $data['active_flag'] = $request->has('active_flag') ? $request->active_flag : true;

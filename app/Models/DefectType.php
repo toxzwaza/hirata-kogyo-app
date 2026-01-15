@@ -37,3 +37,4 @@ class DefectType extends Model
 
 
 
+

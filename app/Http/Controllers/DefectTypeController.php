@@ -82,3 +82,5 @@ class DefectTypeController extends Controller
 
 
 
+
+

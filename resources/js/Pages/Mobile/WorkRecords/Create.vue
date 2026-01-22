@@ -331,9 +331,9 @@ const submit = () => {
             <div class="text-white">
                 <div class="text-sm font-medium mb-2 opacity-90">ログイン中のスタッフ</div>
                 <div class="text-3xl font-bold">{{ currentStaff.name }}</div>
-                <div v-if="currentStaff.staff_type" class="text-lg mt-2 opacity-90">
+                <!-- <div v-if="currentStaff.staff_type" class="text-lg mt-2 opacity-90">
                     {{ currentStaff.staff_type.name }}
-                </div>
+                </div> -->
             </div>
         </div>
 

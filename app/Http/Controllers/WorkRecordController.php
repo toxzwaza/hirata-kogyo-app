@@ -312,7 +312,9 @@ class WorkRecordController extends Controller
             ->orderBy('name')
             ->get();
         $drawings = Drawing::where('active_flag', true)
-            ->with('client')
+            ->with(['client', 'workRates' => function($query) {
+                $query->orderBy('effective_from', 'desc');
+            }, 'workRates.workMethod'])
             ->orderBy('drawing_number')
             ->get();
         $workMethods = WorkMethod::orderBy('name')->get();

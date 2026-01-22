@@ -32,7 +32,16 @@ const handleImageChange = (event) => {
 };
 
 const submit = () => {
-    form.post(route('drawings.update', props.drawing.id), {
+    form.transform((data) => {
+        // 画像がnullの場合は除外
+        const transformed = { ...data };
+        if (!transformed.image) {
+            delete transformed.image;
+        }
+        // _methodフィールドを追加してPUTメソッドを指定
+        transformed._method = 'PUT';
+        return transformed;
+    }).post(route('drawings.update', props.drawing.id), {
         forceFormData: true,
     });
 };
@@ -55,6 +64,10 @@ const deleteDrawing = () => {
         <div class="py-12">
             <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white shadow-sm rounded-lg p-6">
+                    <!-- 成功メッセージ -->
+                    <div v-if="$page.props.flash?.success" class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+                        {{ $page.props.flash.success }}
+                    </div>
                     <form @submit.prevent="submit">
                         <div class="space-y-6">
                             <!-- 客先 -->

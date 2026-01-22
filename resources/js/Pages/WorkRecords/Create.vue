@@ -378,7 +378,7 @@ const submit = () => {
                                         :key="staff.id"
                                         :value="staff.id"
                                     >
-                                        {{ staff.name }} ({{ staff.staff_type.name }})
+                                        {{ staff.name }}
                                     </option>
                                 </select>
                                 <p v-if="form.errors.staff_id" class="mt-1 text-sm text-red-600">

@@ -24,6 +24,15 @@ use Inertia\Inertia;
 | contains the "web" middleware group. Now create something great!
 |
 */
+Route::get('/__debug', function () {
+    return response()->json([
+        'scheme' => request()->getScheme(),
+        'secure' => request()->isSecure(),
+        'xfp'    => request()->header('x-forwarded-proto'),
+        'host'   => request()->getHost(),
+        'url'    => request()->fullUrl(),
+    ]);
+});
 
 Route::get('/', function () {
     return redirect()->route('login');

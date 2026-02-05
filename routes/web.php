@@ -62,6 +62,7 @@ Route::middleware('auth')->group(function () {
     // スタッフ請求書管理
     Route::resource('staff-invoices', StaffInvoiceController::class)->except(['edit', 'update']);
     Route::post('/staff-invoices/{staff_invoice}/fix', [StaffInvoiceController::class, 'fix'])->name('staff-invoices.fix');
+    Route::post('/staff-invoices/{staff_invoice}/unfix', [StaffInvoiceController::class, 'unfix'])->name('staff-invoices.unfix');
     Route::get('/staff-invoices/{staff_invoice}/pdf', [StaffInvoiceController::class, 'pdf'])->name('staff-invoices.pdf');
 
     // 客先請求書管理
@@ -74,6 +75,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('clients', ClientController::class);
     Route::resource('drawings', DrawingController::class);
     Route::resource('work-methods', WorkMethodController::class);
+    Route::post('work-rates/relink-work-records', [WorkRateController::class, 'relinkWorkRecords'])->name('work-rates.relink-work-records');
     Route::resource('work-rates', WorkRateController::class);
     Route::resource('staff', StaffController::class);
     Route::resource('defect-types', DefectTypeController::class);

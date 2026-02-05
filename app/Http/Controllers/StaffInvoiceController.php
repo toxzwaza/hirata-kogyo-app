@@ -131,18 +131,29 @@ class StaffInvoiceController extends Controller
     }
 
     /**
+     * 確定済み請求書を下書きに戻す
+     */
+    public function unfix(StaffInvoice $staffInvoice)
+    {
+        try {
+            $this->staffInvoiceService->unfixInvoice($staffInvoice);
+
+            return redirect()->route('staff-invoices.index')
+                ->with('success', '請求書を下書きに戻しました。');
+        } catch (\Exception $e) {
+            return back()->withErrors([
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
      * 請求書削除処理
+     * 客先請求書に紐付いていなければ下書き・確定・支払済のいずれも削除可能
      */
     public function destroy(StaffInvoice $staffInvoice)
     {
         try {
-            // 下書き状態の場合のみ削除可能
-            if ($staffInvoice->status !== 'draft') {
-                return back()->withErrors([
-                    'error' => '下書き状態の請求書のみ削除できます。'
-                ]);
-            }
-
             // 客先請求書に紐付いている場合は削除不可
             if ($staffInvoice->clientInvoiceItems()->exists()) {
                 return back()->withErrors([

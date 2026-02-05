@@ -150,6 +150,39 @@ class StaffInvoiceService
     }
 
     /**
+     * 確定済み請求書を下書きに戻す
+     * 客先請求書に紐付いている場合は戻せない
+     *
+     * @param StaffInvoice $invoice
+     * @return StaffInvoice
+     * @throws \Exception
+     */
+    public function unfixInvoice(StaffInvoice $invoice): StaffInvoice
+    {
+        if (!$invoice->isFixed()) {
+            throw new \Exception('下書きに戻せるのは確定済みまたは支払済みの請求書のみです。');
+        }
+
+        if ($invoice->clientInvoiceItems()->exists()) {
+            throw new \Exception('客先請求書に紐付いているため下書きに戻せません。');
+        }
+
+        DB::beginTransaction();
+        try {
+            $invoice->update([
+                'status' => 'draft',
+            ]);
+
+            DB::commit();
+
+            return $invoice->load(['staff', 'details.workRecord']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
      * 請求書番号を生成
      * 形式: STAFF-YYYY-NNN
      * 

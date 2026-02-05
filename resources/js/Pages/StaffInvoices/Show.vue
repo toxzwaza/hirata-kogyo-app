@@ -33,11 +33,24 @@ const fixInvoice = () => {
     }
 };
 
+const revertToDraft = () => {
+    if (confirm('この請求書を下書きに戻しますか？')) {
+        router.post(route('staff-invoices.unfix', props.invoice.id), {}, {
+            onError: (errors) => {
+                if (errors.error) alert(errors.error);
+            },
+        });
+    }
+};
+
 const deleteInvoice = () => {
     if (confirm('この請求書を削除しますか？この操作は取り消せません。')) {
         router.delete(route('staff-invoices.destroy', props.invoice.id), {
             onSuccess: () => {
                 router.visit(route('staff-invoices.index'));
+            },
+            onError: (errors) => {
+                if (errors.error) alert(errors.error);
             },
         });
     }
@@ -157,13 +170,26 @@ const workItems = computed(() => {
                     >
                         確定
                     </button>
-                    <button
-                        v-if="invoice.status === 'fixed' || invoice.status === 'paid'"
-                        @click="downloadPdf"
-                        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                    >
-                        PDF出力
-                    </button>
+                    <template v-if="invoice.status === 'fixed' || invoice.status === 'paid'">
+                        <button
+                            @click="revertToDraft"
+                            class="bg-amber-500 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded"
+                        >
+                            下書きに戻す
+                        </button>
+                        <button
+                            @click="deleteInvoice"
+                            class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                        >
+                            削除
+                        </button>
+                        <button
+                            @click="downloadPdf"
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                        >
+                            PDF出力
+                        </button>
+                    </template>
                 </div>
             </div>
         </template>

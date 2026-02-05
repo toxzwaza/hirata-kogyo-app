@@ -211,7 +211,7 @@ const getStatusClass = (status) => {
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <Link
                                         :href="route('staff-invoices.show', invoice.id)"
-                                        class="text-blue-600 hover:text-blue-900 mr-4"
+                                        class="text-blue-600 hover:text-blue-900"
                                     >
                                         確認
                                     </Link>

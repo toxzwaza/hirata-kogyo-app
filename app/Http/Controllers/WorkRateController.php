@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateWorkRateRequest;
 use App\Models\WorkRate;
 use App\Models\Drawing;
 use App\Models\WorkMethod;
+use App\Services\RelinkWorkRecordsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -125,6 +126,16 @@ class WorkRateController extends Controller
 
         return redirect()->route('work-rates.index')
             ->with('success', '作業単価を削除しました。');
+    }
+
+    /**
+     * 無効な単価に紐づく作業実績を有効な単価に再紐づけする
+     */
+    public function relinkWorkRecords(RelinkWorkRecordsService $service)
+    {
+        $result = $service->run(false);
+
+        return response()->json($result);
     }
 }
 

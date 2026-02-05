@@ -141,6 +141,7 @@ const workItems = computed(() => {
             quantity,
             unitPrice,
             amount,
+            rateTooltip: detail.rate_tooltip || null,
         };
     });
 });

@@ -108,8 +108,26 @@ class StaffInvoiceController extends Controller
             'details.workRecord.workRate',
         ]);
 
+        // 各行の作業単価詳細（ツールチップ用）を付与
+        $invoiceArray = $staffInvoice->toArray();
+        foreach ($invoiceArray['details'] as $i => $detailArray) {
+            $detail = $staffInvoice->details[$i];
+            $workRecord = $detail->workRecord;
+            $workRate = $workRecord->workRate;
+            $staff = $staffInvoice->staff;
+            $isOvertime = $workRecord->isOvertime();
+            $invoiceArray['details'][$i]['rate_tooltip'] = [
+                'start_time_display' => $workRecord->start_time
+                    ? $workRecord->start_time->format('Y年n月j日 H:i')
+                    : '',
+                'rate_normal' => round($workRate->getRateForStaff($staff, false), 2),
+                'rate_overtime' => round($workRate->getRateForStaff($staff, true), 2),
+                'is_overtime' => $isOvertime,
+            ];
+        }
+
         return Inertia::render('StaffInvoices/Show', [
-            'invoice' => $staffInvoice,
+            'invoice' => $invoiceArray,
         ]);
     }
 

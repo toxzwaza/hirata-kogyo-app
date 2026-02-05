@@ -87,8 +87,37 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(item, index) in workItems" :key="index">
-          <td>{{ item.date }}</td>
+        <tr
+          v-for="(item, index) in workItems"
+          :key="index"
+          class="staff-row-with-tooltip"
+        >
+          <td class="td-with-tooltip">
+            <div
+              v-if="item.rateTooltip"
+              class="rate-tooltip"
+            >
+              <div
+                v-if="item.rateTooltip.start_time_display"
+                class="rate-tooltip-line rate-tooltip-time"
+              >
+                作業開始時刻: {{ item.rateTooltip.start_time_display }}
+              </div>
+              <div class="rate-tooltip-line">
+                通常単価:
+                <span :class="{ 'rate-applied': !item.rateTooltip.is_overtime }">
+                  ¥{{ formatNumber(item.rateTooltip.rate_normal) }}/kg
+                </span>
+              </div>
+              <div class="rate-tooltip-line">
+                残業単価:
+                <span :class="{ 'rate-applied': item.rateTooltip.is_overtime }">
+                  ¥{{ formatNumber(item.rateTooltip.rate_overtime) }}/kg
+                </span>
+              </div>
+            </div>
+            {{ item.date }}
+          </td>
           <td>{{ item.client }}</td>
           <td>{{ item.drawingNumber }}</td>
           <td>{{ item.productName }}</td>
@@ -521,6 +550,62 @@ const tableClass = computed(() => {
 .items.staff th:nth-child(7),
 .items.staff td:nth-child(7) {
   width: 17%;
+}
+
+/* スタッフ請求書：行ホバー時の単価ツールチップ */
+.staff-row-with-tooltip {
+  position: relative;
+}
+
+.staff-row-with-tooltip .td-with-tooltip {
+  position: relative;
+  overflow: visible;
+}
+
+.staff-row-with-tooltip .rate-tooltip {
+  visibility: hidden;
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin-bottom: 4px;
+  padding: 6px 10px;
+  background: #1f2937;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.5;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 50;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+.staff-row-with-tooltip .rate-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 12px;
+  border: 5px solid transparent;
+  border-top-color: #1f2937;
+}
+
+.staff-row-with-tooltip:hover .rate-tooltip {
+  visibility: visible;
+}
+
+.staff-row-with-tooltip .rate-tooltip-line {
+  margin: 2px 0;
+}
+
+.staff-row-with-tooltip .rate-tooltip-line.rate-tooltip-time {
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.staff-row-with-tooltip .rate-tooltip .rate-applied {
+  color: #f87171;
+  font-weight: bold;
 }
 
 /* 客先請求書（3列）の列幅設定 */

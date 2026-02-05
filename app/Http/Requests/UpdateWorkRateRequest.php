@@ -11,6 +11,13 @@ class UpdateWorkRateRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if (!$this->has('active_flg')) {
+            $this->merge(['active_flg' => false]);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -22,6 +29,7 @@ class UpdateWorkRateRequest extends FormRequest
             'note' => ['nullable', 'string', 'max:1000'],
             'effective_from' => ['required', 'date'],
             'effective_to' => ['nullable', 'date', 'after:effective_from'],
+            'active_flg' => ['boolean'],
         ];
     }
 

@@ -182,60 +182,41 @@ class StaffInvoiceController extends Controller
             'staff.staffType',
             'details.workRecord.drawing.client',
             'details.workRecord.workMethod',
-            'details.workRecord.workRate',
         ]);
 
-        // 作業実績データを準備
+        // 作業実績データを準備（請求書作成時に保存したスナップショットの単価・金額を使用し単価マスタ変更の影響を受けない）
         $workItems = [];
         $totalAmount = 0;
         foreach ($staffInvoice->details as $detail) {
             $workRecord = $detail->workRecord;
             $drawing = $workRecord->drawing;
             $client = $drawing->client;
-            $workRate = $workRecord->workRate;
-            
+
             // 日付を取得（作業開始日）
-            $date = $workRecord->start_time 
+            $date = $workRecord->start_time
                 ? $workRecord->start_time->format('Y年n月j日')
                 : '';
-            
+
             // 客先名
             $clientName = $client->name ?? '';
-            
+
             // 品番（図番）
             $drawingNumber = $drawing->drawing_number ?? '';
-            
+
             // 品名
             $productName = $drawing->product_name ?? '';
-            
+
             // 実績数（良品数 + 不良数）
             $quantity = ($workRecord->quantity_good ?? 0) + ($workRecord->quantity_ng ?? 0);
-            
+
             // 1個あたりの重量（kg）
             $weightPerUnit = $drawing->weight_per_unit ?? 0;
-            
-            // 作業開始時間をチェックして、残業単価を使用するか判定
-            $rateToUse = $workRate->rate_contractor ?? 0;
-            if ($workRecord->start_time) {
-                $startTime = \Carbon\Carbon::parse($workRecord->start_time);
-                $hours = $startTime->hour;
-                $minutes = $startTime->minute;
-                $isOvertime = $hours > 17 || ($hours === 17 && $minutes >= 10);
-                
-                // 17:10以降で、rate_overtimeがnullでない場合は残業単価を使用
-                if ($isOvertime && $workRate->rate_overtime !== null) {
-                    $rateToUse = $workRate->rate_overtime;
-                }
-            }
-            
-            // 個単価（1個あたりの重量 × 単価）
-            // 単価は重量あたりの単価（円/kg）なので、1個あたりの単価を計算
-            $unitPrice = $weightPerUnit * $rateToUse;
-            
-            // 金額（実績数 × 個単価）
-            $amount = $quantity * $unitPrice;
+
+            // 明細に保存済みの単価・金額スナップショットを使用（単価マスタ変更の影響を受けない）
+            $unitPrice = $weightPerUnit * (float) ($detail->unit_price ?? 0);
+            $amount = (float) ($detail->amount ?? 0);
             $totalAmount += $amount;
-            
+
             $workItems[] = [
                 'date' => $date,
                 'client' => $clientName,
@@ -246,9 +227,9 @@ class StaffInvoiceController extends Controller
                 'amount' => $amount,
             ];
         }
-        
-        // 合計金額を四捨五入
-        $totalAmount = round($totalAmount, 0);
+
+        // 合計金額（スナップショットの合計、または請求書のtotalを使用）
+        $totalAmount = $totalAmount > 0 ? round($totalAmount, 0) : (int) $staffInvoice->total;
 
         // BladeテンプレートをHTMLに変換
         $html = view('pdf.staff-invoice', [

@@ -49,6 +49,15 @@ const formatDate = (date) => {
 const formatNumber = (num) => {
     return new Intl.NumberFormat('ja-JP', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
 };
+
+// 適用状況の使用テキスト（作業実績・請求書での使用状況）
+const applicationStatusText = (rate) => {
+    const n = rate.work_records_count ?? 0;
+    const invoiced = rate.work_records_invoiced_count ?? 0;
+    if (n === 0) return '';
+    if (invoiced === 0) return `使用中（実績 ${n} 件）`;
+    return `使用中（実績 ${n} 件・請求書反映 ${invoiced} 件）`;
+};
 </script>
 
 <template>
@@ -155,6 +164,12 @@ const formatNumber = (num) => {
                                     適用期間
                                 </th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    適用
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    適用状況
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     操作
                                 </th>
                             </tr>
@@ -182,6 +197,24 @@ const formatNumber = (num) => {
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {{ formatDate(rate.effective_from) }} ～ {{ formatDate(rate.effective_to) }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span
+                                        :class="[
+                                            'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                                            rate.active_flg !== false
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-gray-100 text-gray-500',
+                                        ]"
+                                    >
+                                        {{ rate.active_flg !== false ? '有効' : '無効' }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-700">
+                                    <span v-if="applicationStatusText(rate)" class="text-gray-600">
+                                        {{ applicationStatusText(rate) }}
+                                    </span>
+                                    <span v-else class="text-gray-400">—</span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <Link

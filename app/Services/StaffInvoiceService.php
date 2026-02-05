@@ -30,11 +30,12 @@ class StaffInvoiceService
         try {
             $staff = Staff::findOrFail($staffId);
 
-            // 請求期間内の未請求の作業実績を取得
+            // 請求期間内の未請求の作業実績を取得（適用フラグが有効な単価の実績のみ）
             $workRecords = WorkRecord::where('staff_id', $staffId)
                 ->whereDate('start_time', '>=', $periodFrom)
                 ->whereDate('start_time', '<=', $periodTo)
                 ->whereDoesntHave('staffInvoiceDetails') // 既に請求書に含まれていない
+                ->whereHas('workRate', fn ($q) => $q->where('active_flg', true))
                 ->with(['drawing', 'workMethod', 'workRate'])
                 ->orderBy('start_time')
                 ->get();

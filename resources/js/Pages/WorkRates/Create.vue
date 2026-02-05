@@ -60,6 +60,7 @@ const form = useForm({
     note: '',
     effective_from: '',
     effective_to: null,
+    active_flg: true,
 });
 
 const submit = () => {
@@ -173,6 +174,21 @@ const submit = () => {
                                 />
                                 <p v-if="form.errors.rate_overtime" class="mt-1 text-sm text-red-600">
                                     {{ form.errors.rate_overtime }}
+                                </p>
+                            </div>
+
+                            <!-- 適用フラグ -->
+                            <div>
+                                <label class="flex items-center gap-2">
+                                    <input
+                                        v-model="form.active_flg"
+                                        type="checkbox"
+                                        class="rounded border-gray-300"
+                                    />
+                                    <span class="text-sm font-medium text-gray-700">適用する（作業実績で使用する単価として有効）</span>
+                                </label>
+                                <p v-if="form.errors.active_flg" class="mt-1 text-sm text-red-600">
+                                    {{ form.errors.active_flg }}
                                 </p>
                             </div>
 

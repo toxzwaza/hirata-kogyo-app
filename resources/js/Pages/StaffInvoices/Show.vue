@@ -85,68 +85,41 @@ const invoiceData = computed(() => {
     };
 });
 
-// 作業実績データをInvoice.vueの形式に変換
+// 作業実績データをInvoice.vueの形式に変換（請求書はスナップショットの単価・金額を使用し単価マスタ変更の影響を受けない）
 const workItems = computed(() => {
     if (!props.invoice.details) return [];
-    
+
     return props.invoice.details.map((detail) => {
         const workRecord = detail.work_record;
         const drawing = workRecord?.drawing;
         const client = drawing?.client;
-        const workRate = workRecord?.work_rate;
-        
+
         // 日付を取得（作業開始日）
-        const date = workRecord?.start_time 
+        const date = workRecord?.start_time
             ? formatDate(workRecord.start_time)
             : '';
-        
+
         // 客先名
         const clientName = client?.name || '';
-        
+
         // 品番（図番）
         const drawingNumber = drawing?.drawing_number || '';
-        
+
         // 品名
         const productName = drawing?.product_name || '';
-        
+
         // 実績数（良品数 + 不良数）
         const quantity = (workRecord?.quantity_good || 0) + (workRecord?.quantity_ng || 0);
-        
+
         // 1個あたりの重量（kg）
         const weightPerUnit = drawing?.weight_per_unit || 0;
-        
-        // 作業開始時間をチェックして、残業単価を使用するか判定
-        let rateToUse = workRate?.rate_contractor || 0;
-        let reason = '定時';
-        
-        if (workRecord?.start_time) {
-            const startTime = new Date(workRecord.start_time);
-            const hours = startTime.getHours();
-            const minutes = startTime.getMinutes();
-            const isOvertime = hours > 17 || (hours === 17 && minutes >= 10);
-            
-            if (isOvertime) {
-                if (workRate?.rate_overtime != null) {
-                    rateToUse = workRate.rate_overtime;
-                    reason = '残業';
-                } else {
-                    reason = '残業だがrate_overtimeがNULL';
-                }
-            }
-        }
-        
-        // 使用した単価と理由をコンソールに出力
-        console.log(`[作業実績] 品番: ${drawingNumber}, 開始時間: ${workRecord?.start_time || '不明'}`);
-        console.log(`  使用単価: ${rateToUse}円/kg (理由: ${reason})`);
-        console.log(`  rate_contractor: ${workRate?.rate_contractor || 'NULL'}, rate_overtime: ${workRate?.rate_overtime ?? 'NULL'}`);
-        
-        // 個単価（1個あたりの重量 × 単価）
-        // 単価は重量あたりの単価（円/kg）なので、1個あたりの単価を計算
-        const unitPrice = weightPerUnit * rateToUse;
-        
-        // 金額（実績数 × 個単価）
-        const amount = quantity * unitPrice;
-        
+
+        // 請求書作成時に保存した単価・金額のスナップショットを使用（単価マスタ変更の影響を受けない）
+        const unitPrice = detail.unit_price != null && detail.amount != null
+            ? weightPerUnit * Number(detail.unit_price)
+            : 0;
+        const amount = detail.amount != null ? Number(detail.amount) : 0;
+
         return {
             date,
             client: clientName,

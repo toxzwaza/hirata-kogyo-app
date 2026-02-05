@@ -16,6 +16,10 @@ class WorkRateController extends Controller
     public function index(Request $request)
     {
         $query = WorkRate::with(['drawing.client', 'workMethod'])
+            ->withCount('workRecords')
+            ->withCount(['workRecords as work_records_invoiced_count' => function ($q) {
+                $q->whereHas('staffInvoiceDetails');
+            }])
             ->orderBy('effective_from', 'desc')
             ->orderBy('drawing_id');
 
@@ -109,13 +113,6 @@ class WorkRateController extends Controller
 
     public function update(UpdateWorkRateRequest $request, WorkRate $workRate)
     {
-        // 既に使用されている単価は編集不可
-        if ($workRate->workRecords()->exists()) {
-            return back()->withErrors([
-                'error' => 'この単価は使用されているため編集できません。'
-            ]);
-        }
-
         $workRate->update($request->validated());
 
         return redirect()->route('work-rates.index')
@@ -124,12 +121,6 @@ class WorkRateController extends Controller
 
     public function destroy(WorkRate $workRate)
     {
-        if ($workRate->workRecords()->exists()) {
-            return back()->withErrors([
-                'error' => 'この単価は使用されているため削除できません。'
-            ]);
-        }
-
         $workRate->delete();
 
         return redirect()->route('work-rates.index')

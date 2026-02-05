@@ -23,6 +23,7 @@ class WorkRate extends Model
         'note',
         'effective_from',
         'effective_to',
+        'active_flg',
     ];
 
     protected $casts = [
@@ -31,6 +32,7 @@ class WorkRate extends Model
         'rate_overtime' => 'decimal:2',
         'effective_from' => 'date',
         'effective_to' => 'date',
+        'active_flg' => 'boolean',
     ];
 
     /**

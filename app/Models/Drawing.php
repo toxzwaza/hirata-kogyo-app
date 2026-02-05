@@ -70,6 +70,7 @@ class Drawing extends Model
 
         return $this->workRates()
             ->where('work_method_id', $workMethodId)
+            ->where('active_flg', true)
             ->where('effective_from', '<=', $dateStr)
             ->where(function ($query) use ($dateStr) {
                 $query->whereNull('effective_to')

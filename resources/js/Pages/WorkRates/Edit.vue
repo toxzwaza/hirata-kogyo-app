@@ -8,6 +8,14 @@ const props = defineProps({
     workMethods: Array,
 });
 
+// type="date" 用に YYYY-MM-DD 形式に正規化（登録済みの日付をデフォルト表示するため）
+const toDateInputValue = (val) => {
+    if (val == null) return '';
+    if (typeof val === 'string') return val.substring(0, 10);
+    if (typeof val === 'object' && val instanceof Date) return val.toISOString().slice(0, 10);
+    return '';
+};
+
 const form = useForm({
     drawing_id: props.workRate.drawing_id,
     work_method_id: props.workRate.work_method_id,
@@ -15,8 +23,9 @@ const form = useForm({
     rate_contractor: props.workRate.rate_contractor,
     rate_overtime: props.workRate.rate_overtime,
     note: props.workRate.note || '',
-    effective_from: props.workRate.effective_from,
-    effective_to: props.workRate.effective_to || null,
+    effective_from: toDateInputValue(props.workRate.effective_from),
+    effective_to: toDateInputValue(props.workRate.effective_to) || null,
+    active_flg: props.workRate.active_flg !== false,
 });
 
 const submit = () => {
@@ -132,6 +141,21 @@ const deleteRate = () => {
                                 />
                                 <p v-if="form.errors.rate_overtime" class="mt-1 text-sm text-red-600">
                                     {{ form.errors.rate_overtime }}
+                                </p>
+                            </div>
+
+                            <!-- 適用フラグ -->
+                            <div>
+                                <label class="flex items-center gap-2">
+                                    <input
+                                        v-model="form.active_flg"
+                                        type="checkbox"
+                                        class="rounded border-gray-300"
+                                    />
+                                    <span class="text-sm font-medium text-gray-700">適用する（作業実績で使用する単価として有効）</span>
+                                </label>
+                                <p v-if="form.errors.active_flg" class="mt-1 text-sm text-red-600">
+                                    {{ form.errors.active_flg }}
                                 </p>
                             </div>
 

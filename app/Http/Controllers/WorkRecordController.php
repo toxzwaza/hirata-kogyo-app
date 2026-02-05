@@ -85,7 +85,7 @@ class WorkRecordController extends Controller
             ->get();
         $drawings = Drawing::where('active_flag', true)
             ->with(['client', 'workRates' => function($query) {
-                $query->orderBy('effective_from', 'desc');
+                $query->where('active_flg', true)->orderBy('effective_from', 'desc');
             }, 'workRates.workMethod'])
             ->orderBy('drawing_number')
             ->get();
@@ -134,11 +134,11 @@ class WorkRecordController extends Controller
         
         $drawings = Drawing::where('active_flag', true)
             ->with(['client', 'workRates' => function($query) {
-                $query->orderBy('effective_from', 'desc');
+                $query->where('active_flg', true)->orderBy('effective_from', 'desc');
             }, 'workRates.workMethod'])
             ->orderBy('drawing_number')
             ->get();
-        
+
         $workMethods = WorkMethod::orderBy('name')->get();
         $defectTypes = DefectType::orderBy('name')->get();
 
@@ -313,7 +313,7 @@ class WorkRecordController extends Controller
             ->get();
         $drawings = Drawing::where('active_flag', true)
             ->with(['client', 'workRates' => function($query) {
-                $query->orderBy('effective_from', 'desc');
+                $query->where('active_flg', true)->orderBy('effective_from', 'desc');
             }, 'workRates.workMethod'])
             ->orderBy('drawing_number')
             ->get();

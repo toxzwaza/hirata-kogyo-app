@@ -7,6 +7,7 @@ use App\Models\ClientInvoice;
 use App\Models\StaffInvoice;
 use App\Models\StaffInvoiceItem;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 /**
  * 客先請求書サービス
@@ -134,6 +135,28 @@ class ClientInvoiceService
     }
 
     /**
+     * 支払い期限を更新する（下書き時のみ）
+     *
+     * @param ClientInvoice $invoice
+     * @param string $paymentDueDate Y-m-d 形式の日付
+     * @return ClientInvoice
+     * @throws \Exception
+     */
+    public function updatePaymentDueDate(ClientInvoice $invoice, string $paymentDueDate): ClientInvoice
+    {
+        if ($invoice->isFixed()) {
+            throw new \Exception('支払い期限は下書きのときのみ変更できます。');
+        }
+
+        // 日付のみをカレンダー通りに保存（タイムゾーンずれ防止のため UTC のその日 0:00 として設定）
+        $invoice->update([
+            'payment_due_date' => Carbon::createFromFormat('Y-m-d', $paymentDueDate, 'UTC'),
+        ]);
+
+        return $invoice->load(['client', 'staffInvoiceItems.staffInvoice.staff']);
+    }
+
+    /**
      * 請求書を確定する
      * 
      * @param ClientInvoice $invoice
@@ -150,6 +173,34 @@ class ClientInvoiceService
         try {
             $invoice->update([
                 'status' => 'fixed',
+            ]);
+
+            DB::commit();
+
+            return $invoice->load(['client', 'staffInvoiceItems.staffInvoice.staff']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * 確定済み請求書を下書きに戻す
+     *
+     * @param ClientInvoice $invoice
+     * @return ClientInvoice
+     * @throws \Exception
+     */
+    public function unfixInvoice(ClientInvoice $invoice): ClientInvoice
+    {
+        if (!$invoice->isFixed()) {
+            throw new \Exception('下書きに戻せるのは確定済みまたは発行済みの請求書のみです。');
+        }
+
+        DB::beginTransaction();
+        try {
+            $invoice->update([
+                'status' => 'draft',
             ]);
 
             DB::commit();

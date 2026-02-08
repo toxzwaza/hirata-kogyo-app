@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import Invoice from '@/Components/Invoice.vue';
 
@@ -8,9 +8,47 @@ const props = defineProps({
     invoice: Object,
 });
 
+// 日付のみ文字列をローカル日付としてパース（タイムゾーンずれ防止）
+const parseLocalDate = (dateStr) => {
+    if (!dateStr) return null;
+    const s = typeof dateStr === 'string' ? dateStr.slice(0, 10) : dateStr;
+    if (typeof s !== 'string' || s.length < 10) return null;
+    const [y, m, d] = s.split('-').map(Number);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+    return new Date(y, m - 1, d);
+};
+// ローカル日付を Y-m-d に
+const toYmd = (date) => {
+    if (!date) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};
+// 支払い期限の実効値（Y-m-d）。保存済みがあればそれ、なければ発行日+30日
+const getEffectiveDueDateYmd = (inv) => {
+    if (inv?.payment_due_date) {
+        const s = typeof inv.payment_due_date === 'string' ? inv.payment_due_date : inv.payment_due_date;
+        return s.slice(0, 10);
+    }
+    const issue = parseLocalDate(inv?.issue_date);
+    if (issue) {
+        issue.setDate(issue.getDate() + 30);
+        return toYmd(issue);
+    }
+    return '';
+};
+
+const paymentDueDateForm = useForm({
+    payment_due_date: getEffectiveDueDateYmd(props.invoice),
+});
+
 const formatDate = (date) => {
     if (!date) return '';
-    const d = new Date(date);
+    const d = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date.slice(0, 10))
+        ? parseLocalDate(date)
+        : new Date(date);
+    if (!d || isNaN(d.getTime())) return '';
     const year = d.getFullYear();
     const month = d.getMonth() + 1;
     const day = d.getDate();
@@ -60,6 +98,15 @@ const downloadPdf = () => {
     window.location.href = route('staff-invoices.pdf', props.invoice.id);
 };
 
+const submitPaymentDueDate = () => {
+    paymentDueDateForm.post(route('staff-invoices.update-payment-due-date', props.invoice.id), {
+        onSuccess: () => {
+            paymentDueDateForm.reset();
+            paymentDueDateForm.payment_due_date = getEffectiveDueDateYmd(props.invoice);
+        },
+    });
+};
+
 // Invoice.vueに渡すためのデータを準備
 // スタッフ請求書の場合、client（請求先）は株式会社平田工業、issuer（発行元）はスタッフ情報
 const invoiceClient = computed(() => ({
@@ -79,10 +126,15 @@ const invoiceIssuer = computed(() => ({
 
 const invoiceData = computed(() => {
     const issueDate = props.invoice.issue_date ? formatDate(props.invoice.issue_date) : '';
-    const dueDate = props.invoice.issue_date 
-        ? formatDate(new Date(new Date(props.invoice.issue_date).getTime() + 30 * 24 * 60 * 60 * 1000))
-        : '';
-    
+    const dueDateRaw = props.invoice.payment_due_date
+        ? parseLocalDate(props.invoice.payment_due_date)
+        : (() => {
+            const issue = parseLocalDate(props.invoice.issue_date);
+            if (!issue) return null;
+            issue.setDate(issue.getDate() + 30);
+            return issue;
+        })();
+    const dueDate = dueDateRaw ? formatDate(dueDateRaw) : '';
     return {
         issueDate: issueDate,
         number: props.invoice.invoice_number || '',
@@ -213,6 +265,35 @@ const workItems = computed(() => {
                             </span>
                         </p>
                     </div>
+                </div>
+
+                <!-- 下書き時のみ: 支払い期限の変更 -->
+                <div
+                    v-if="invoice.status === 'draft'"
+                    class="mb-6 bg-white shadow-sm rounded-lg p-6 border border-gray-200"
+                >
+                    <h3 class="text-lg font-bold mb-4">支払い期限</h3>
+                    <form @submit.prevent="submitPaymentDueDate" class="flex flex-wrap items-end gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">支払い期限</label>
+                            <input
+                                v-model="paymentDueDateForm.payment_due_date"
+                                type="date"
+                                class="rounded-md border-gray-300 shadow-sm"
+                                :class="{ 'border-red-500': paymentDueDateForm.errors.payment_due_date }"
+                            />
+                            <p v-if="paymentDueDateForm.errors.payment_due_date" class="mt-1 text-sm text-red-600">
+                                {{ paymentDueDateForm.errors.payment_due_date }}
+                            </p>
+                        </div>
+                        <button
+                            type="submit"
+                            :disabled="paymentDueDateForm.processing"
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+                        >
+                            {{ paymentDueDateForm.processing ? '保存中...' : '支払い期限を保存' }}
+                        </button>
+                    </form>
                 </div>
                 
                 <Invoice

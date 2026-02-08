@@ -63,12 +63,15 @@ Route::middleware('auth')->group(function () {
     Route::resource('staff-invoices', StaffInvoiceController::class)->except(['edit', 'update']);
     Route::post('/staff-invoices/{staff_invoice}/fix', [StaffInvoiceController::class, 'fix'])->name('staff-invoices.fix');
     Route::post('/staff-invoices/{staff_invoice}/unfix', [StaffInvoiceController::class, 'unfix'])->name('staff-invoices.unfix');
+    Route::post('/staff-invoices/{staff_invoice}/update-payment-due-date', [StaffInvoiceController::class, 'updatePaymentDueDate'])->name('staff-invoices.update-payment-due-date');
     Route::get('/staff-invoices/{staff_invoice}/pdf', [StaffInvoiceController::class, 'pdf'])->name('staff-invoices.pdf');
 
     // 客先請求書管理
     Route::resource('client-invoices', ClientInvoiceController::class)->except(['edit', 'update']);
     Route::post('/client-invoices/{client_invoice}/update-adjustment', [ClientInvoiceController::class, 'updateAdjustment'])->name('client-invoices.update-adjustment');
+    Route::post('/client-invoices/{client_invoice}/update-payment-due-date', [ClientInvoiceController::class, 'updatePaymentDueDate'])->name('client-invoices.update-payment-due-date');
     Route::post('/client-invoices/{client_invoice}/fix', [ClientInvoiceController::class, 'fix'])->name('client-invoices.fix');
+    Route::post('/client-invoices/{client_invoice}/unfix', [ClientInvoiceController::class, 'unfix'])->name('client-invoices.unfix');
     Route::get('/client-invoices/{client_invoice}/pdf', [ClientInvoiceController::class, 'pdf'])->name('client-invoices.pdf');
 
     // マスタ管理

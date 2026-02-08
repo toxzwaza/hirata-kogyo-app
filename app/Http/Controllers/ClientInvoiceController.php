@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\CreateClientInvoiceRequest;
 use App\Http\Requests\UpdateClientInvoiceAdjustmentRequest;
+use App\Http\Requests\UpdatePaymentDueDateRequest;
 use App\Models\ClientInvoice;
 use App\Models\Client;
 use App\Models\StaffInvoice;
@@ -127,8 +128,12 @@ class ClientInvoiceController extends Controller
             'staffInvoiceItems.staffInvoice.details.workRecord.workRate',
         ]);
 
+        $invoiceData = $clientInvoice->toArray();
+        // 支払い期限を日付のみで返す（JSON 時の UTC 変換で前日になるのを防ぐ）
+        $invoiceData['payment_due_date'] = $clientInvoice->payment_due_date?->format('Y-m-d');
+
         return Inertia::render('ClientInvoices/Show', [
-            'invoice' => $clientInvoice,
+            'invoice' => $invoiceData,
         ]);
     }
 
@@ -154,6 +159,26 @@ class ClientInvoiceController extends Controller
     }
 
     /**
+     * 支払い期限を更新する（下書き時のみ）
+     */
+    public function updatePaymentDueDate(UpdatePaymentDueDateRequest $request, ClientInvoice $clientInvoice)
+    {
+        try {
+            $this->clientInvoiceService->updatePaymentDueDate(
+                $clientInvoice,
+                $request->validated('payment_due_date')
+            );
+
+            return redirect()->route('client-invoices.show', $clientInvoice)
+                ->with('success', '支払い期限を更新しました。');
+        } catch (\Exception $e) {
+            return back()->withErrors([
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
      * 請求書確定処理
      */
     public function fix(ClientInvoice $clientInvoice)
@@ -163,6 +188,23 @@ class ClientInvoiceController extends Controller
 
             return redirect()->route('client-invoices.show', $clientInvoice)
                 ->with('success', '請求書を確定しました。');
+        } catch (\Exception $e) {
+            return back()->withErrors([
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * 確定済み請求書を下書きに戻す
+     */
+    public function unfix(ClientInvoice $clientInvoice)
+    {
+        try {
+            $this->clientInvoiceService->unfixInvoice($clientInvoice);
+
+            return redirect()->route('client-invoices.index')
+                ->with('success', '請求書を下書きに戻しました。');
         } catch (\Exception $e) {
             return back()->withErrors([
                 'error' => $e->getMessage()

@@ -282,7 +282,7 @@
                     </tr>
                     <tr>
                         <th>支払期限</th>
-                        <td>{{ $invoice->issue_date ? $invoice->issue_date->copy()->addDays(30)->format('Y年n月j日') : '' }}</td>
+                        <td>{{ $invoice->payment_due_date ? $invoice->payment_due_date->format('Y年n月j日') : ($invoice->issue_date ? $invoice->issue_date->copy()->addDays(30)->format('Y年n月j日') : '') }}</td>
                     </tr>
                 </table>
             </div>

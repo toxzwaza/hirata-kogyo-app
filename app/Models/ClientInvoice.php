@@ -17,6 +17,7 @@ class ClientInvoice extends Model
         'client_id',
         'invoice_number',
         'issue_date',
+        'payment_due_date',
         'period_from',
         'period_to',
         'subtotal',
@@ -29,6 +30,7 @@ class ClientInvoice extends Model
 
     protected $casts = [
         'issue_date' => 'date',
+        'payment_due_date' => 'date',
         'period_from' => 'date',
         'period_to' => 'date',
         'subtotal' => 'decimal:2',

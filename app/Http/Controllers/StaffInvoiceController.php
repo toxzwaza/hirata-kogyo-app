@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CreateStaffInvoiceRequest;
+use App\Http\Requests\UpdatePaymentDueDateRequest;
 use App\Models\StaffInvoice;
 use App\Models\Staff;
 use App\Services\StaffInvoiceService;
@@ -110,6 +111,8 @@ class StaffInvoiceController extends Controller
 
         // 各行の作業単価詳細（ツールチップ用）を付与
         $invoiceArray = $staffInvoice->toArray();
+        // 支払い期限を日付のみで返す（JSON 時の UTC 変換で前日になるのを防ぐ）
+        $invoiceArray['payment_due_date'] = $staffInvoice->payment_due_date?->format('Y-m-d');
         foreach ($invoiceArray['details'] as $i => $detailArray) {
             $detail = $staffInvoice->details[$i];
             $workRecord = $detail->workRecord;
@@ -158,6 +161,26 @@ class StaffInvoiceController extends Controller
 
             return redirect()->route('staff-invoices.index')
                 ->with('success', '請求書を下書きに戻しました。');
+        } catch (\Exception $e) {
+            return back()->withErrors([
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * 支払い期限を更新する（下書き時のみ）
+     */
+    public function updatePaymentDueDate(UpdatePaymentDueDateRequest $request, StaffInvoice $staffInvoice)
+    {
+        try {
+            $this->staffInvoiceService->updatePaymentDueDate(
+                $staffInvoice,
+                $request->validated('payment_due_date')
+            );
+
+            return redirect()->route('staff-invoices.show', $staffInvoice)
+                ->with('success', '支払い期限を更新しました。');
         } catch (\Exception $e) {
             return back()->withErrors([
                 'error' => $e->getMessage()

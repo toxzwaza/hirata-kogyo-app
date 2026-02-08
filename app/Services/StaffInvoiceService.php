@@ -183,6 +183,28 @@ class StaffInvoiceService
     }
 
     /**
+     * 支払い期限を更新する（下書き時のみ）
+     *
+     * @param StaffInvoice $invoice
+     * @param string $paymentDueDate Y-m-d 形式の日付
+     * @return StaffInvoice
+     * @throws \Exception
+     */
+    public function updatePaymentDueDate(StaffInvoice $invoice, string $paymentDueDate): StaffInvoice
+    {
+        if (!$invoice->isEditable()) {
+            throw new \Exception('支払い期限は下書きのときのみ変更できます。');
+        }
+
+        // 日付のみをカレンダー通りに保存（タイムゾーンずれ防止のため UTC のその日 0:00 として設定）
+        $invoice->update([
+            'payment_due_date' => Carbon::createFromFormat('Y-m-d', $paymentDueDate, 'UTC'),
+        ]);
+
+        return $invoice->load(['staff', 'details.workRecord']);
+    }
+
+    /**
      * 請求書番号を生成
      * 形式: STAFF-YYYY-NNN
      * 

@@ -347,7 +347,7 @@
             <table>
                 <tr>
                     <th>件名</th>
-                    <td>@if($type === 'client')請求期間: {{ $invoice->period_from->format('Y年n月j日') }} ～ {{ $invoice->period_to->format('Y年n月j日') }}@else{{ $title ?? ($clientName . ' 様 請求内訳') }}@endif</td>
+                    <td>@if($type === 'client')請求期間: {{ $invoice->period_from->format('Y年n月j日') }} ～ {{ $invoice->period_to->format('Y年n月j日') }}@else{{ $title ?? ($clientName . ' 請求内訳') }}@endif</td>
                 </tr>
             </table>
         </div>

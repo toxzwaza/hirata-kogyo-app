@@ -395,7 +395,7 @@ class ClientInvoiceController extends Controller
                 'clientName' => $staffName,
                 'clientPostal' => '',
                 'clientAddress' => '',
-                'title' => "{$staffName} 様 請求内訳",
+                'title' => "{$staffName} 請求内訳",
                 'workItems' => $workItems,
                 'totalAmount' => $totalAmount,
             ])->render();

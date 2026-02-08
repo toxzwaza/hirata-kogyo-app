@@ -418,7 +418,7 @@ const groupedStaffItems = computed(() => {
             :issuer="invoiceIssuer"
             :invoice="{
               ...invoiceData,
-              title: `${staffName} 様 請求内訳`,
+              title: `${staffName} 請求内訳`,
             }"
             :work-items="items"
           />

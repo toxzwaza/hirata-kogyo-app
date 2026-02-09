@@ -107,12 +107,12 @@ class WorkRecord extends Model
 
     /**
      * 残業かどうかを判定
-     * 18時以降の作業は残業とみなす
+     * 17時以降の作業は残業とみなす
      */
     public function isOvertime(): bool
     {
         $startHour = Carbon::parse($this->start_time)->hour;
-        return $startHour >= 18;
+        return $startHour >= 17;
     }
 }
 

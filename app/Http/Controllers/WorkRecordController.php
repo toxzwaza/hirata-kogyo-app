@@ -295,8 +295,25 @@ class WorkRecordController extends Controller
     {
         // 請求書に含まれている場合は編集不可
         if ($workRecord->isInvoiced()) {
+            $invoices = $workRecord->staffInvoiceDetails()
+                ->with('staffInvoice.staff')
+                ->get()
+                ->map(fn ($detail) => $detail->staffInvoice)
+                ->unique('id')
+                ->values()
+                ->map(fn ($invoice) => [
+                    'id' => $invoice->id,
+                    'invoice_number' => $invoice->invoice_number,
+                    'issue_date' => $invoice->issue_date?->format('Y-m-d'),
+                    'period_from' => $invoice->period_from?->format('Y-m-d'),
+                    'period_to' => $invoice->period_to?->format('Y-m-d'),
+                    'staff_name' => $invoice->staff?->name,
+                ])
+                ->all();
+
             return redirect()->route('work-records.index')
-                ->with('error', 'この作業実績は請求書に含まれているため編集できません。');
+                ->with('error', 'この作業実績は請求書に含まれているため編集できません。')
+                ->with('errorInvoicedInvoices', $invoices);
         }
 
         $workRecord->load([

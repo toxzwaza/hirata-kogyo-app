@@ -43,11 +43,11 @@ const paymentDueDateForm = useForm({
     payment_due_date: getEffectiveDueDateYmd(props.invoice),
 });
 
+// 日付のみ文字列（YYYY-MM-DD・Tを含まない）のときは parseLocalDate、ISO 日時は new Date でローカル日付を表示（UTCずれ防止）
 const formatDate = (date) => {
     if (!date) return '';
-    const d = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date.slice(0, 10))
-        ? parseLocalDate(date)
-        : new Date(date);
+    const isDateOnly = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date.slice(0, 10)) && !date.includes('T');
+    const d = isDateOnly ? parseLocalDate(date) : new Date(date);
     if (!d || isNaN(d.getTime())) return '';
     const year = d.getFullYear();
     const month = d.getMonth() + 1;

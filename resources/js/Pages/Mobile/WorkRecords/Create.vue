@@ -8,6 +8,10 @@ const props = defineProps({
     drawings: Array,
     workMethods: Array,
     defectTypes: Array,
+    todayRecords: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 // 得意先リスト（重複なし）
@@ -23,25 +27,34 @@ const clients = computed(() => {
 
 // フィルター用のリアクティブ変数
 const clientFilter = ref('');
+const productNameFilter = ref('');
 const drawingNumberFilter = ref('');
 
 // フィルターされた図番リスト
 const filteredDrawings = computed(() => {
     let filtered = props.drawings;
-    
+
     // 得意先でフィルター
     if (clientFilter.value) {
         filtered = filtered.filter(d => d.client && d.client.id === parseInt(clientFilter.value));
     }
-    
+
+    // 品名でフィルター（部分一致・大文字小文字無視）
+    if (productNameFilter.value) {
+        const searchText = productNameFilter.value.toLowerCase();
+        filtered = filtered.filter(d =>
+            (d.product_name || '').toLowerCase().includes(searchText)
+        );
+    }
+
     // 図番でフィルター（部分一致）
     if (drawingNumberFilter.value) {
         const searchText = drawingNumberFilter.value.toLowerCase();
-        filtered = filtered.filter(d => 
+        filtered = filtered.filter(d =>
             d.drawing_number.toLowerCase().includes(searchText)
         );
     }
-    
+
     return filtered;
 });
 
@@ -287,6 +300,63 @@ const availableWorkMethods = computed(() => {
     });
 });
 
+// ==== 履歴モーダル ====
+const showHistoryModal = ref(false);
+
+const openHistory = () => {
+    showHistoryModal.value = true;
+    // 背面スクロールを止める
+    document.body.style.overflow = 'hidden';
+};
+const closeHistory = () => {
+    showHistoryModal.value = false;
+    document.body.style.overflow = '';
+};
+
+// 時刻フォーマット HH:mm
+const formatTime = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+};
+
+// 作業時間を HH:mm 表示
+const formatWorkMinutes = (minutes) => {
+    const m = parseInt(minutes) || 0;
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    if (h === 0) return `${mm}分`;
+    if (mm === 0) return `${h}時間`;
+    return `${h}時間${mm}分`;
+};
+
+// 日付ラベル（今日/日付）
+const todayLabel = computed(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const wd = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+    return `${y}/${m}/${day}（${wd}）`;
+});
+
+// 集計（本日）
+const todaySummary = computed(() => {
+    const list = props.todayRecords || [];
+    const good = list.reduce((s, r) => s + (parseInt(r.quantity_good) || 0), 0);
+    const ng = list.reduce((s, r) => s + (parseInt(r.quantity_ng) || 0), 0);
+    const mins = list.reduce((s, r) => s + (parseInt(r.work_minutes) || 0), 0);
+    return {
+        count: list.length,
+        good,
+        ng,
+        minutes: mins,
+    };
+});
+
 const submit = () => {
     // 日付・時間・分を結合してdatetime形式に変換
     const startTime = combineDateTime(form.start_date, form.start_hour, form.start_minute);
@@ -327,18 +397,44 @@ const submit = () => {
         </div>
 
         <!-- スタッフ情報（目立つように大きく表示） -->
-        <div class="bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl shadow-lg p-6 mb-6 border-2 border-orange-700">
+        <div class="bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl shadow-lg p-6 mb-4 border-2 border-orange-700">
             <div class="text-white">
                 <div class="text-sm font-medium mb-2 opacity-90">ログイン中のスタッフ</div>
                 <div class="text-3xl font-bold">{{ currentStaff.name }}</div>
-                <!-- <div v-if="currentStaff.staff_type" class="text-lg mt-2 opacity-90">
-                    {{ currentStaff.staff_type.name }}
-                </div> -->
             </div>
         </div>
 
+        <!-- 本日の登録履歴を確認するボタン -->
+        <button
+            type="button"
+            @click="openHistory"
+            class="w-full mb-6 px-4 py-4 bg-white hover:bg-slate-50 active:bg-slate-100 rounded-xl shadow-md border-2 border-slate-300 flex items-center justify-between transition-all"
+        >
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l2.5 2.5M12 3a9 9 0 1 0 9 9" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v6h6" />
+                    </svg>
+                </div>
+                <div class="text-left">
+                    <div class="text-lg font-bold text-gray-800">本日の登録履歴</div>
+                    <div class="text-sm text-gray-500">{{ todayLabel }}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span
+                    class="min-w-[2.5rem] h-10 px-3 rounded-full flex items-center justify-center text-lg font-bold shadow-sm"
+                    :class="todaySummary.count > 0 ? 'bg-sky-500 text-white' : 'bg-gray-200 text-gray-500'"
+                >{{ todaySummary.count }}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m9 5 7 7-7 7" />
+                </svg>
+            </div>
+        </button>
+
         <form @submit.prevent="submit" class="space-y-6">
-            <!-- 図番選択（2カラム：得意先と図番入力） -->
+            <!-- 図番選択（得意先・品名・図番の3軸絞り込み） -->
             <div class="bg-white rounded-xl shadow-md p-5 border border-gray-200">
                 <label class="block text-lg font-bold text-gray-800 mb-4">図番 *</label>
                 <div class="grid grid-cols-1 gap-4">
@@ -348,7 +444,7 @@ const submit = () => {
                         <select
                             v-model="clientFilter"
                             class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                            @change="drawingNumberFilter = ''; form.drawing_id = ''; form.work_method_id = ''"
+                            @change="productNameFilter = ''; drawingNumberFilter = ''; form.drawing_id = ''; form.work_method_id = ''"
                         >
                             <option value="">すべて</option>
                             <option
@@ -360,7 +456,27 @@ const submit = () => {
                             </option>
                         </select>
                     </div>
-                    
+
+                    <!-- 品名フィルター（部分一致） -->
+                    <div>
+                        <label class="block text-base font-semibold text-gray-700 mb-2">品名</label>
+                        <div class="relative">
+                            <input
+                                v-model="productNameFilter"
+                                type="text"
+                                placeholder="品名の一部を入力（例：ケーシング）"
+                                class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-4 pr-12"
+                            />
+                            <button
+                                v-if="productNameFilter"
+                                type="button"
+                                @click="productNameFilter = ''"
+                                class="absolute top-1/2 right-3 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 text-xl"
+                                aria-label="品名クリア"
+                            >×</button>
+                        </div>
+                    </div>
+
                     <!-- 図番入力（datalist使用） -->
                     <div>
                         <label class="block text-base font-semibold text-gray-700 mb-2">図番</label>
@@ -382,6 +498,9 @@ const submit = () => {
                                 {{ drawing.drawing_number }} - {{ drawing.product_name }} ({{ drawing.client.name }})
                             </option>
                         </datalist>
+                        <p class="mt-2 text-sm text-gray-500">
+                            絞り込み結果: <span class="font-semibold text-gray-700">{{ filteredDrawings.length }}</span> 件
+                        </p>
                     </div>
                 </div>
                 <p v-if="form.errors.drawing_id" class="mt-2 text-base text-red-600 font-semibold">
@@ -658,6 +777,172 @@ const submit = () => {
                 </button>
             </div>
         </form>
+
+        <!-- 本日の登録履歴モーダル -->
+        <Teleport to="body">
+            <Transition
+                enter-active-class="transition duration-200 ease-out"
+                enter-from-class="opacity-0"
+                enter-to-class="opacity-100"
+                leave-active-class="transition duration-150 ease-in"
+                leave-from-class="opacity-100"
+                leave-to-class="opacity-0"
+            >
+                <div
+                    v-if="showHistoryModal"
+                    class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center"
+                    @click.self="closeHistory"
+                >
+                    <Transition
+                        enter-active-class="transition duration-250 ease-out"
+                        enter-from-class="translate-y-full sm:translate-y-0 sm:scale-95 opacity-0"
+                        enter-to-class="translate-y-0 sm:scale-100 opacity-100"
+                        leave-active-class="transition duration-200 ease-in"
+                        leave-from-class="translate-y-0 sm:scale-100 opacity-100"
+                        leave-to-class="translate-y-full sm:translate-y-0 sm:scale-95 opacity-0"
+                        appear
+                    >
+                        <div
+                            v-if="showHistoryModal"
+                            class="w-full sm:max-w-2xl bg-slate-50 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden"
+                        >
+                            <!-- ヘッダー -->
+                            <div class="sticky top-0 bg-gradient-to-r from-sky-600 to-blue-700 text-white px-5 py-4 flex items-center justify-between shadow-md">
+                                <div>
+                                    <div class="text-xl font-bold">本日の登録履歴</div>
+                                    <div class="text-xs opacity-90 mt-0.5">{{ todayLabel }} ／ {{ currentStaff.name }} さん</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="closeHistory"
+                                    class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/40 flex items-center justify-center text-2xl font-bold transition"
+                                    aria-label="閉じる"
+                                >×</button>
+                            </div>
+
+                            <!-- サマリー -->
+                            <div class="px-5 pt-4 pb-2 bg-white border-b border-gray-200">
+                                <div class="grid grid-cols-4 gap-2">
+                                    <div class="text-center p-2 rounded-lg bg-slate-50 border border-slate-200">
+                                        <div class="text-[11px] text-slate-500 font-semibold">件数</div>
+                                        <div class="text-xl font-bold text-slate-800">{{ todaySummary.count }}</div>
+                                    </div>
+                                    <div class="text-center p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                                        <div class="text-[11px] text-emerald-700 font-semibold">良品計</div>
+                                        <div class="text-xl font-bold text-emerald-700">{{ todaySummary.good }}</div>
+                                    </div>
+                                    <div class="text-center p-2 rounded-lg bg-rose-50 border border-rose-200">
+                                        <div class="text-[11px] text-rose-700 font-semibold">不良計</div>
+                                        <div class="text-xl font-bold text-rose-700">{{ todaySummary.ng }}</div>
+                                    </div>
+                                    <div class="text-center p-2 rounded-lg bg-amber-50 border border-amber-200">
+                                        <div class="text-[11px] text-amber-700 font-semibold">工数計</div>
+                                        <div class="text-lg font-bold text-amber-700 leading-tight">{{ formatWorkMinutes(todaySummary.minutes) }}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- リスト -->
+                            <div class="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+                                <!-- 空状態 -->
+                                <div v-if="todaySummary.count === 0" class="py-16 text-center">
+                                    <div class="text-6xl mb-3">📋</div>
+                                    <div class="text-lg font-bold text-gray-600">本日の登録はまだありません</div>
+                                    <div class="text-sm text-gray-500 mt-1">作業実績を登録するとここに表示されます</div>
+                                </div>
+
+                                <!-- 履歴カード -->
+                                <div
+                                    v-for="(rec, idx) in todayRecords"
+                                    :key="rec.id"
+                                    class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+                                >
+                                    <!-- 時刻ヘッダー -->
+                                    <div class="flex items-center justify-between bg-gradient-to-r from-slate-800 to-slate-700 text-white px-4 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">
+                                                {{ todayRecords.length - idx }}
+                                            </span>
+                                            <span class="font-mono font-bold tracking-wide">
+                                                {{ formatTime(rec.start_time) }}
+                                                <span class="opacity-70 mx-1">→</span>
+                                                {{ formatTime(rec.end_time) }}
+                                            </span>
+                                        </div>
+                                        <span class="text-xs bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full font-bold">
+                                            {{ formatWorkMinutes(rec.work_minutes) }}
+                                        </span>
+                                    </div>
+
+                                    <!-- 本体 -->
+                                    <div class="p-4 space-y-3">
+                                        <!-- 得意先・品名・図番 -->
+                                        <div>
+                                            <div class="text-xs text-gray-500 mb-0.5">
+                                                {{ rec.drawing?.client?.name || '—' }}
+                                            </div>
+                                            <div class="text-base font-bold text-gray-800 leading-snug">
+                                                {{ rec.drawing?.product_name || '—' }}
+                                            </div>
+                                            <div class="inline-flex items-center gap-1 mt-1 text-xs font-mono text-sky-700 bg-sky-50 border border-sky-200 rounded px-2 py-0.5">
+                                                図番: {{ rec.drawing?.drawing_number || '—' }}
+                                            </div>
+                                            <div class="inline-flex items-center gap-1 mt-1 ml-1 text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded px-2 py-0.5">
+                                                {{ rec.work_method?.name || '—' }}
+                                            </div>
+                                        </div>
+
+                                        <!-- 数量 -->
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <div class="text-center p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                                                <div class="text-[11px] text-emerald-700 font-semibold">良品</div>
+                                                <div class="text-xl font-bold text-emerald-700">{{ rec.quantity_good }}</div>
+                                            </div>
+                                            <div class="text-center p-2 rounded-lg" :class="rec.quantity_ng > 0 ? 'bg-rose-50 border border-rose-200' : 'bg-gray-50 border border-gray-200'">
+                                                <div class="text-[11px] font-semibold" :class="rec.quantity_ng > 0 ? 'text-rose-700' : 'text-gray-500'">不良</div>
+                                                <div class="text-xl font-bold" :class="rec.quantity_ng > 0 ? 'text-rose-700' : 'text-gray-400'">{{ rec.quantity_ng }}</div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 不良内訳 -->
+                                        <div v-if="rec.defects && rec.defects.length > 0" class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2">
+                                            <div class="text-[11px] font-bold text-rose-800 mb-1">不良内訳</div>
+                                            <div class="flex flex-wrap gap-1.5">
+                                                <span
+                                                    v-for="d in rec.defects"
+                                                    :key="d.id"
+                                                    class="text-xs bg-white border border-rose-300 text-rose-700 rounded-full px-2 py-0.5"
+                                                >
+                                                    {{ d.defect_type?.name || '—' }}
+                                                    <span class="font-bold ml-1">× {{ d.defect_quantity }}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <!-- 備考 -->
+                                        <div v-if="rec.memo" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                                            <div class="text-[11px] font-bold text-amber-800 mb-0.5">備考</div>
+                                            <div class="text-sm text-amber-900 whitespace-pre-wrap break-words">{{ rec.memo }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- フッター -->
+                            <div class="bg-white border-t border-gray-200 px-4 py-3">
+                                <button
+                                    type="button"
+                                    @click="closeHistory"
+                                    class="w-full h-12 bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white font-bold rounded-xl shadow-md transition"
+                                >
+                                    閉じる
+                                </button>
+                            </div>
+                        </div>
+                    </Transition>
+                </div>
+            </Transition>
+        </Teleport>
     </MobileLayout>
 </template>
 

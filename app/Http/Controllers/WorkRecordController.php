@@ -142,11 +142,23 @@ class WorkRecordController extends Controller
         $workMethods = WorkMethod::orderBy('name')->get();
         $defectTypes = DefectType::orderBy('name')->get();
 
+        // 当日の自分の登録履歴（新しい順）
+        $todayRecords = WorkRecord::with([
+                'drawing.client',
+                'workMethod',
+                'defects.defectType',
+            ])
+            ->where('staff_id', $currentStaff->id)
+            ->whereDate('start_time', Carbon::today())
+            ->orderBy('start_time', 'desc')
+            ->get();
+
         return Inertia::render('Mobile/WorkRecords/Create', [
             'currentStaff' => $currentStaff,
             'drawings' => $drawings,
             'workMethods' => $workMethods,
             'defectTypes' => $defectTypes,
+            'todayRecords' => $todayRecords,
         ]);
     }
 

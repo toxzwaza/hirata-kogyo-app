@@ -142,7 +142,7 @@ class WorkRecordController extends Controller
         $workMethods = WorkMethod::orderBy('name')->get();
         $defectTypes = DefectType::orderBy('name')->get();
 
-        // 当日の自分の登録履歴（新しい順）
+        // 当日の自分の登録履歴（新しい順）。請求書反映済みフラグも付与
         $todayRecords = WorkRecord::with([
                 'drawing.client',
                 'workMethod',
@@ -151,7 +151,12 @@ class WorkRecordController extends Controller
             ->where('staff_id', $currentStaff->id)
             ->whereDate('start_time', Carbon::today())
             ->orderBy('start_time', 'desc')
-            ->get();
+            ->get()
+            ->map(function ($r) {
+                $arr = $r->toArray();
+                $arr['is_invoiced'] = $r->isInvoiced();
+                return $arr;
+            });
 
         return Inertia::render('Mobile/WorkRecords/Create', [
             'currentStaff' => $currentStaff,
@@ -229,6 +234,80 @@ class WorkRecordController extends Controller
             DB::rollBack();
             return back()->withErrors([
                 'error' => '作業実績の登録に失敗しました: ' . $e->getMessage()
+            ])->withInput();
+        }
+    }
+
+    /**
+     * 作業実績更新処理（スマホ用）
+     *
+     * スタッフは自分の、かつ請求書未反映の実績のみ編集可能。
+     * 図番・作業方法・単価は変更不可（画面側でも read-only にしている）。
+     */
+    public function updateForMobile(UpdateWorkRecordRequest $request, WorkRecord $workRecord)
+    {
+        // 本人のレコードのみ編集可
+        if ($workRecord->staff_id !== auth()->user()->id) {
+            return back()->withErrors([
+                'error' => 'この作業実績を編集する権限がありません。',
+            ]);
+        }
+
+        // 請求書に含まれている場合は編集不可
+        if ($workRecord->isInvoiced()) {
+            return back()->withErrors([
+                'error' => 'この作業実績は請求書に反映済みのため編集できません。',
+            ]);
+        }
+
+        DB::beginTransaction();
+        try {
+            $startTime = Carbon::parse($request->start_time);
+            $endTime = Carbon::parse($request->end_time);
+            $workMinutes = $startTime->diffInMinutes($endTime);
+
+            // 単価は開始時刻に基づき再評価（図番・作業方法は変更不可＝既存値を使用）
+            $drawing = Drawing::findOrFail($workRecord->drawing_id);
+            $workRate = $drawing->getEffectiveWorkRate($workRecord->work_method_id, $startTime);
+            if (!$workRate) {
+                return back()->withErrors([
+                    'error' => '指定された日時点で有効な作業単価が設定されていません。',
+                ]);
+            }
+
+            $workRecord->update([
+                'work_rate_id' => $workRate->id,
+                'start_time' => $request->start_time,
+                'end_time' => $request->end_time,
+                'work_minutes' => $workMinutes,
+                'quantity_good' => $request->quantity_good,
+                'quantity_ng' => $request->quantity_ng,
+                'memo' => $request->memo,
+            ]);
+
+            // 不良内訳の入れ替え
+            $workRecord->defects()->delete();
+            if ($request->filled('defects') && is_array($request->defects)) {
+                $totalDefectQuantity = array_sum(array_column($request->defects, 'defect_quantity'));
+                if ((int) $totalDefectQuantity !== (int) $request->quantity_ng) {
+                    throw new \Exception('不良内訳の合計が不良数と一致しません。');
+                }
+                foreach ($request->defects as $defect) {
+                    $workRecord->defects()->create([
+                        'defect_type_id' => $defect['defect_type_id'],
+                        'defect_quantity' => $defect['defect_quantity'],
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return redirect()->route('mobile.work-records.create')
+                ->with('success', '作業実績を更新しました。');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors([
+                'error' => '作業実績の更新に失敗しました: ' . $e->getMessage(),
             ])->withInput();
         }
     }

@@ -310,7 +310,102 @@ const openHistory = () => {
 };
 const closeHistory = () => {
     showHistoryModal.value = false;
+    editingRecord.value = null;
     document.body.style.overflow = '';
+};
+
+// ==== 編集モード（履歴モーダル内で切替） ====
+const editingRecord = ref(null);
+
+const editForm = useForm({
+    drawing_id: '',
+    work_method_id: '',
+    staff_id: props.currentStaff.id,
+    start_date: '',
+    start_hour: '',
+    start_minute: '',
+    end_date: '',
+    end_hour: '',
+    end_minute: '',
+    quantity_good: 0,
+    quantity_ng: 0,
+    memo: '',
+    defects: [],
+});
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+const splitIso = (iso) => {
+    const d = new Date(iso);
+    return {
+        date: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`,
+        hour: pad2(d.getHours()),
+        // 既存の5分単位に丸める（本来保存時には丸められているが念のため）
+        minute: pad2(Math.floor(d.getMinutes() / 5) * 5),
+    };
+};
+
+const openEdit = (rec) => {
+    if (rec.is_invoiced) return;
+    const s = splitIso(rec.start_time);
+    const e = splitIso(rec.end_time);
+    editForm.clearErrors();
+    editForm.drawing_id = rec.drawing_id;
+    editForm.work_method_id = rec.work_method_id;
+    editForm.staff_id = rec.staff_id;
+    editForm.start_date = s.date;
+    editForm.start_hour = s.hour;
+    editForm.start_minute = s.minute;
+    editForm.end_date = e.date;
+    editForm.end_hour = e.hour;
+    editForm.end_minute = e.minute;
+    editForm.quantity_good = rec.quantity_good ?? 0;
+    editForm.quantity_ng = rec.quantity_ng ?? 0;
+    editForm.memo = rec.memo ?? '';
+    editForm.defects = (rec.defects || []).map((d) => ({
+        defect_type_id: d.defect_type_id,
+        defect_quantity: d.defect_quantity,
+    }));
+    editingRecord.value = rec;
+};
+
+const closeEdit = () => {
+    editingRecord.value = null;
+    editForm.clearErrors();
+};
+
+const editTotalDefectQuantity = computed(() =>
+    editForm.defects.reduce((sum, d) => sum + (parseInt(d.defect_quantity) || 0), 0)
+);
+
+const editIsDefectQuantityValid = computed(() =>
+    editTotalDefectQuantity.value === (parseInt(editForm.quantity_ng) || 0)
+);
+
+const editAddDefect = () => {
+    editForm.defects.push({ defect_type_id: '', defect_quantity: 1 });
+};
+
+const editRemoveDefect = (i) => {
+    editForm.defects.splice(i, 1);
+};
+
+const submitEdit = () => {
+    const startTime = combineDateTime(editForm.start_date, editForm.start_hour, editForm.start_minute);
+    const endTime = combineDateTime(editForm.end_date, editForm.end_hour, editForm.end_minute);
+    editForm
+        .transform((data) => ({
+            ...data,
+            start_time: startTime,
+            end_time: endTime,
+        }))
+        .patch(route('mobile.work-records.update', editingRecord.value.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                // 更新後はpropsが再取得されるので、一覧表示に戻すだけでOK
+                editingRecord.value = null;
+            },
+        });
 };
 
 // 時刻フォーマット HH:mm
@@ -806,8 +901,11 @@ const submit = () => {
                             v-if="showHistoryModal"
                             class="w-full sm:max-w-2xl bg-slate-50 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden"
                         >
-                            <!-- ヘッダー -->
-                            <div class="sticky top-0 bg-gradient-to-r from-sky-600 to-blue-700 text-white px-5 py-4 flex items-center justify-between shadow-md">
+                            <!-- ヘッダー：一覧モード -->
+                            <div
+                                v-if="!editingRecord"
+                                class="sticky top-0 bg-gradient-to-r from-sky-600 to-blue-700 text-white px-5 py-4 flex items-center justify-between shadow-md"
+                            >
                                 <div>
                                     <div class="text-xl font-bold">本日の登録履歴</div>
                                     <div class="text-xs opacity-90 mt-0.5">{{ todayLabel }} ／ {{ currentStaff.name }} さん</div>
@@ -820,124 +918,385 @@ const submit = () => {
                                 >×</button>
                             </div>
 
-                            <!-- サマリー -->
-                            <div class="px-5 pt-4 pb-2 bg-white border-b border-gray-200">
-                                <div class="grid grid-cols-4 gap-2">
-                                    <div class="text-center p-2 rounded-lg bg-slate-50 border border-slate-200">
-                                        <div class="text-[11px] text-slate-500 font-semibold">件数</div>
-                                        <div class="text-xl font-bold text-slate-800">{{ todaySummary.count }}</div>
-                                    </div>
-                                    <div class="text-center p-2 rounded-lg bg-emerald-50 border border-emerald-200">
-                                        <div class="text-[11px] text-emerald-700 font-semibold">良品計</div>
-                                        <div class="text-xl font-bold text-emerald-700">{{ todaySummary.good }}</div>
-                                    </div>
-                                    <div class="text-center p-2 rounded-lg bg-rose-50 border border-rose-200">
-                                        <div class="text-[11px] text-rose-700 font-semibold">不良計</div>
-                                        <div class="text-xl font-bold text-rose-700">{{ todaySummary.ng }}</div>
-                                    </div>
-                                    <div class="text-center p-2 rounded-lg bg-amber-50 border border-amber-200">
-                                        <div class="text-[11px] text-amber-700 font-semibold">工数計</div>
-                                        <div class="text-lg font-bold text-amber-700 leading-tight">{{ formatWorkMinutes(todaySummary.minutes) }}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- リスト -->
-                            <div class="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-                                <!-- 空状態 -->
-                                <div v-if="todaySummary.count === 0" class="py-16 text-center">
-                                    <div class="text-6xl mb-3">📋</div>
-                                    <div class="text-lg font-bold text-gray-600">本日の登録はまだありません</div>
-                                    <div class="text-sm text-gray-500 mt-1">作業実績を登録するとここに表示されます</div>
-                                </div>
-
-                                <!-- 履歴カード -->
-                                <div
-                                    v-for="(rec, idx) in todayRecords"
-                                    :key="rec.id"
-                                    class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
-                                >
-                                    <!-- 時刻ヘッダー -->
-                                    <div class="flex items-center justify-between bg-gradient-to-r from-slate-800 to-slate-700 text-white px-4 py-2">
-                                        <div class="flex items-center gap-2">
-                                            <span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">
-                                                {{ todayRecords.length - idx }}
-                                            </span>
-                                            <span class="font-mono font-bold tracking-wide">
-                                                {{ formatTime(rec.start_time) }}
-                                                <span class="opacity-70 mx-1">→</span>
-                                                {{ formatTime(rec.end_time) }}
-                                            </span>
-                                        </div>
-                                        <span class="text-xs bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full font-bold">
-                                            {{ formatWorkMinutes(rec.work_minutes) }}
-                                        </span>
-                                    </div>
-
-                                    <!-- 本体 -->
-                                    <div class="p-4 space-y-3">
-                                        <!-- 得意先・品名・図番 -->
-                                        <div>
-                                            <div class="text-xs text-gray-500 mb-0.5">
-                                                {{ rec.drawing?.client?.name || '—' }}
-                                            </div>
-                                            <div class="text-base font-bold text-gray-800 leading-snug">
-                                                {{ rec.drawing?.product_name || '—' }}
-                                            </div>
-                                            <div class="inline-flex items-center gap-1 mt-1 text-xs font-mono text-sky-700 bg-sky-50 border border-sky-200 rounded px-2 py-0.5">
-                                                図番: {{ rec.drawing?.drawing_number || '—' }}
-                                            </div>
-                                            <div class="inline-flex items-center gap-1 mt-1 ml-1 text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded px-2 py-0.5">
-                                                {{ rec.work_method?.name || '—' }}
-                                            </div>
-                                        </div>
-
-                                        <!-- 数量 -->
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <div class="text-center p-2 rounded-lg bg-emerald-50 border border-emerald-200">
-                                                <div class="text-[11px] text-emerald-700 font-semibold">良品</div>
-                                                <div class="text-xl font-bold text-emerald-700">{{ rec.quantity_good }}</div>
-                                            </div>
-                                            <div class="text-center p-2 rounded-lg" :class="rec.quantity_ng > 0 ? 'bg-rose-50 border border-rose-200' : 'bg-gray-50 border border-gray-200'">
-                                                <div class="text-[11px] font-semibold" :class="rec.quantity_ng > 0 ? 'text-rose-700' : 'text-gray-500'">不良</div>
-                                                <div class="text-xl font-bold" :class="rec.quantity_ng > 0 ? 'text-rose-700' : 'text-gray-400'">{{ rec.quantity_ng }}</div>
-                                            </div>
-                                        </div>
-
-                                        <!-- 不良内訳 -->
-                                        <div v-if="rec.defects && rec.defects.length > 0" class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2">
-                                            <div class="text-[11px] font-bold text-rose-800 mb-1">不良内訳</div>
-                                            <div class="flex flex-wrap gap-1.5">
-                                                <span
-                                                    v-for="d in rec.defects"
-                                                    :key="d.id"
-                                                    class="text-xs bg-white border border-rose-300 text-rose-700 rounded-full px-2 py-0.5"
-                                                >
-                                                    {{ d.defect_type?.name || '—' }}
-                                                    <span class="font-bold ml-1">× {{ d.defect_quantity }}</span>
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <!-- 備考 -->
-                                        <div v-if="rec.memo" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
-                                            <div class="text-[11px] font-bold text-amber-800 mb-0.5">備考</div>
-                                            <div class="text-sm text-amber-900 whitespace-pre-wrap break-words">{{ rec.memo }}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- フッター -->
-                            <div class="bg-white border-t border-gray-200 px-4 py-3">
+                            <!-- ヘッダー：編集モード -->
+                            <div
+                                v-else
+                                class="sticky top-0 bg-gradient-to-r from-orange-600 to-amber-600 text-white px-5 py-4 flex items-center justify-between shadow-md"
+                            >
                                 <button
                                     type="button"
-                                    @click="closeHistory"
-                                    class="w-full h-12 bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white font-bold rounded-xl shadow-md transition"
+                                    @click="closeEdit"
+                                    class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/40 flex items-center justify-center transition"
+                                    aria-label="一覧に戻る"
                                 >
-                                    閉じる
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                                    </svg>
                                 </button>
+                                <div class="text-center flex-1">
+                                    <div class="text-lg font-bold">作業実績を編集</div>
+                                    <div class="text-[11px] opacity-90 mt-0.5 font-mono">
+                                        {{ formatTime(editingRecord.start_time) }} →
+                                        {{ formatTime(editingRecord.end_time) }}
+                                    </div>
+                                </div>
+                                <div class="w-10"></div>
                             </div>
+
+                            <!-- 本体：一覧モード -->
+                            <template v-if="!editingRecord">
+                                <!-- サマリー -->
+                                <div class="px-5 pt-4 pb-2 bg-white border-b border-gray-200">
+                                    <div class="grid grid-cols-4 gap-2">
+                                        <div class="text-center p-2 rounded-lg bg-slate-50 border border-slate-200">
+                                            <div class="text-[11px] text-slate-500 font-semibold">件数</div>
+                                            <div class="text-xl font-bold text-slate-800">{{ todaySummary.count }}</div>
+                                        </div>
+                                        <div class="text-center p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                                            <div class="text-[11px] text-emerald-700 font-semibold">良品計</div>
+                                            <div class="text-xl font-bold text-emerald-700">{{ todaySummary.good }}</div>
+                                        </div>
+                                        <div class="text-center p-2 rounded-lg bg-rose-50 border border-rose-200">
+                                            <div class="text-[11px] text-rose-700 font-semibold">不良計</div>
+                                            <div class="text-xl font-bold text-rose-700">{{ todaySummary.ng }}</div>
+                                        </div>
+                                        <div class="text-center p-2 rounded-lg bg-amber-50 border border-amber-200">
+                                            <div class="text-[11px] text-amber-700 font-semibold">工数計</div>
+                                            <div class="text-lg font-bold text-amber-700 leading-tight">{{ formatWorkMinutes(todaySummary.minutes) }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- リスト -->
+                                <div class="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+                                    <!-- 空状態 -->
+                                    <div v-if="todaySummary.count === 0" class="py-16 text-center">
+                                        <div class="text-6xl mb-3">📋</div>
+                                        <div class="text-lg font-bold text-gray-600">本日の登録はまだありません</div>
+                                        <div class="text-sm text-gray-500 mt-1">作業実績を登録するとここに表示されます</div>
+                                    </div>
+
+                                    <!-- 履歴カード -->
+                                    <div
+                                        v-for="(rec, idx) in todayRecords"
+                                        :key="rec.id"
+                                        class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+                                    >
+                                        <!-- 時刻ヘッダー -->
+                                        <div class="flex items-center justify-between bg-gradient-to-r from-slate-800 to-slate-700 text-white px-4 py-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">
+                                                    {{ todayRecords.length - idx }}
+                                                </span>
+                                                <span class="font-mono font-bold tracking-wide">
+                                                    {{ formatTime(rec.start_time) }}
+                                                    <span class="opacity-70 mx-1">→</span>
+                                                    {{ formatTime(rec.end_time) }}
+                                                </span>
+                                            </div>
+                                            <span class="text-xs bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full font-bold">
+                                                {{ formatWorkMinutes(rec.work_minutes) }}
+                                            </span>
+                                        </div>
+
+                                        <!-- 本体 -->
+                                        <div class="p-4 space-y-3">
+                                            <!-- 得意先・品名・図番 -->
+                                            <div>
+                                                <div class="text-xs text-gray-500 mb-0.5">
+                                                    {{ rec.drawing?.client?.name || '—' }}
+                                                </div>
+                                                <div class="text-base font-bold text-gray-800 leading-snug">
+                                                    {{ rec.drawing?.product_name || '—' }}
+                                                </div>
+                                                <div class="inline-flex items-center gap-1 mt-1 text-xs font-mono text-sky-700 bg-sky-50 border border-sky-200 rounded px-2 py-0.5">
+                                                    図番: {{ rec.drawing?.drawing_number || '—' }}
+                                                </div>
+                                                <div class="inline-flex items-center gap-1 mt-1 ml-1 text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded px-2 py-0.5">
+                                                    {{ rec.work_method?.name || '—' }}
+                                                </div>
+                                            </div>
+
+                                            <!-- 数量 -->
+                                            <div class="grid grid-cols-2 gap-2">
+                                                <div class="text-center p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                                                    <div class="text-[11px] text-emerald-700 font-semibold">良品</div>
+                                                    <div class="text-xl font-bold text-emerald-700">{{ rec.quantity_good }}</div>
+                                                </div>
+                                                <div class="text-center p-2 rounded-lg" :class="rec.quantity_ng > 0 ? 'bg-rose-50 border border-rose-200' : 'bg-gray-50 border border-gray-200'">
+                                                    <div class="text-[11px] font-semibold" :class="rec.quantity_ng > 0 ? 'text-rose-700' : 'text-gray-500'">不良</div>
+                                                    <div class="text-xl font-bold" :class="rec.quantity_ng > 0 ? 'text-rose-700' : 'text-gray-400'">{{ rec.quantity_ng }}</div>
+                                                </div>
+                                            </div>
+
+                                            <!-- 不良内訳 -->
+                                            <div v-if="rec.defects && rec.defects.length > 0" class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2">
+                                                <div class="text-[11px] font-bold text-rose-800 mb-1">不良内訳</div>
+                                                <div class="flex flex-wrap gap-1.5">
+                                                    <span
+                                                        v-for="d in rec.defects"
+                                                        :key="d.id"
+                                                        class="text-xs bg-white border border-rose-300 text-rose-700 rounded-full px-2 py-0.5"
+                                                    >
+                                                        {{ d.defect_type?.name || '—' }}
+                                                        <span class="font-bold ml-1">× {{ d.defect_quantity }}</span>
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <!-- 備考 -->
+                                            <div v-if="rec.memo" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                                                <div class="text-[11px] font-bold text-amber-800 mb-0.5">備考</div>
+                                                <div class="text-sm text-amber-900 whitespace-pre-wrap break-words">{{ rec.memo }}</div>
+                                            </div>
+
+                                            <!-- アクション -->
+                                            <div class="pt-1">
+                                                <button
+                                                    v-if="!rec.is_invoiced"
+                                                    type="button"
+                                                    @click="openEdit(rec)"
+                                                    class="w-full h-11 flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-lg shadow-sm transition"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                    </svg>
+                                                    編集する
+                                                </button>
+                                                <div
+                                                    v-else
+                                                    class="w-full h-11 flex items-center justify-center gap-2 bg-gray-100 text-gray-500 rounded-lg border border-gray-200 text-sm font-semibold"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z"/>
+                                                    </svg>
+                                                    請求書反映済み（編集不可）
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- フッター -->
+                                <div class="bg-white border-t border-gray-200 px-4 py-3">
+                                    <button
+                                        type="button"
+                                        @click="closeHistory"
+                                        class="w-full h-12 bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white font-bold rounded-xl shadow-md transition"
+                                    >
+                                        閉じる
+                                    </button>
+                                </div>
+                            </template>
+
+                            <!-- 本体：編集モード -->
+                            <template v-else>
+                                <!-- 対象レコードの要約（読み取り専用） -->
+                                <div class="px-4 pt-4 pb-3 bg-white border-b border-gray-200">
+                                    <div class="text-[11px] text-gray-500 mb-1">編集対象</div>
+                                    <div class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+                                        <div class="text-xs text-gray-500">{{ editingRecord.drawing?.client?.name || '—' }}</div>
+                                        <div class="text-sm font-bold text-gray-800 leading-tight">{{ editingRecord.drawing?.product_name || '—' }}</div>
+                                        <div class="mt-1 flex flex-wrap gap-1">
+                                            <span class="text-[11px] font-mono text-sky-700 bg-sky-50 border border-sky-200 rounded px-2 py-0.5">
+                                                図番: {{ editingRecord.drawing?.drawing_number || '—' }}
+                                            </span>
+                                            <span class="text-[11px] text-purple-700 bg-purple-50 border border-purple-200 rounded px-2 py-0.5">
+                                                {{ editingRecord.work_method?.name || '—' }}
+                                            </span>
+                                        </div>
+                                        <div class="text-[11px] text-gray-400 mt-1">※ 図番・作業方法の変更はできません</div>
+                                    </div>
+                                </div>
+
+                                <!-- 編集フォーム -->
+                                <form @submit.prevent="submitEdit" class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+                                    <!-- 作業開始時刻 -->
+                                    <div class="bg-white rounded-xl border border-gray-200 p-4">
+                                        <label class="block text-base font-bold text-gray-800 mb-3">作業開始時刻 *</label>
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <div>
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1">日付</label>
+                                                <input
+                                                    v-model="editForm.start_date"
+                                                    type="date"
+                                                    class="w-full h-12 text-base rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-2"
+                                                    :class="{ 'border-red-500': editForm.errors.start_time }"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1">時間</label>
+                                                <select
+                                                    v-model="editForm.start_hour"
+                                                    class="w-full h-12 text-base rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                                                    :class="{ 'border-red-500': editForm.errors.start_time }"
+                                                >
+                                                    <option v-for="h in Array.from({ length: 18 }, (_, i) => String(i + 6).padStart(2, '0'))" :key="h" :value="h">{{ h }}</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1">分</label>
+                                                <select
+                                                    v-model="editForm.start_minute"
+                                                    class="w-full h-12 text-base rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                                                    :class="{ 'border-red-500': editForm.errors.start_time }"
+                                                >
+                                                    <option v-for="m in minuteOptions" :key="m" :value="m">{{ m }}</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <p v-if="editForm.errors.start_time" class="mt-2 text-sm text-red-600 font-semibold">{{ editForm.errors.start_time }}</p>
+                                    </div>
+
+                                    <!-- 作業終了時刻 -->
+                                    <div class="bg-white rounded-xl border border-gray-200 p-4">
+                                        <label class="block text-base font-bold text-gray-800 mb-3">作業終了時刻 *</label>
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <div>
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1">日付</label>
+                                                <input
+                                                    v-model="editForm.end_date"
+                                                    type="date"
+                                                    class="w-full h-12 text-base rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-2"
+                                                    :class="{ 'border-red-500': editForm.errors.end_time }"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1">時間</label>
+                                                <select
+                                                    v-model="editForm.end_hour"
+                                                    class="w-full h-12 text-base rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                                                    :class="{ 'border-red-500': editForm.errors.end_time }"
+                                                >
+                                                    <option v-for="h in Array.from({ length: 18 }, (_, i) => String(i + 6).padStart(2, '0'))" :key="h" :value="h">{{ h }}</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1">分</label>
+                                                <select
+                                                    v-model="editForm.end_minute"
+                                                    class="w-full h-12 text-base rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                                                    :class="{ 'border-red-500': editForm.errors.end_time }"
+                                                >
+                                                    <option v-for="m in minuteOptions" :key="m" :value="m">{{ m }}</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <p v-if="editForm.errors.end_time" class="mt-2 text-sm text-red-600 font-semibold">{{ editForm.errors.end_time }}</p>
+                                    </div>
+
+                                    <!-- 数量 -->
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div class="bg-white rounded-xl border border-gray-200 p-4">
+                                            <label class="block text-base font-bold text-gray-800 mb-2">良品数 *</label>
+                                            <input
+                                                v-model.number="editForm.quantity_good"
+                                                type="number"
+                                                min="0"
+                                                class="w-full h-12 text-base rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-3"
+                                                :class="{ 'border-red-500': editForm.errors.quantity_good }"
+                                            />
+                                            <p v-if="editForm.errors.quantity_good" class="mt-1 text-xs text-red-600 font-semibold">{{ editForm.errors.quantity_good }}</p>
+                                        </div>
+                                        <div class="bg-white rounded-xl border border-gray-200 p-4">
+                                            <label class="block text-base font-bold text-gray-800 mb-2">不良数 *</label>
+                                            <input
+                                                v-model.number="editForm.quantity_ng"
+                                                type="number"
+                                                min="0"
+                                                class="w-full h-12 text-base rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-3"
+                                                :class="{ 'border-red-500': editForm.errors.quantity_ng }"
+                                            />
+                                            <p v-if="editForm.errors.quantity_ng" class="mt-1 text-xs text-red-600 font-semibold">{{ editForm.errors.quantity_ng }}</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- 備考 -->
+                                    <div class="bg-white rounded-xl border border-gray-200 p-4">
+                                        <label class="block text-base font-bold text-gray-800 mb-2">備考</label>
+                                        <textarea
+                                            v-model="editForm.memo"
+                                            rows="3"
+                                            placeholder="備考があれば入力してください"
+                                            class="w-full text-base rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-3 py-2"
+                                            :class="{ 'border-red-500': editForm.errors.memo }"
+                                        />
+                                    </div>
+
+                                    <!-- 不良内訳 -->
+                                    <div class="bg-white rounded-xl border border-gray-200 p-4">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <label class="block text-base font-bold text-gray-800">不良内訳</label>
+                                            <button
+                                                type="button"
+                                                @click="editAddDefect"
+                                                class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg text-sm shadow-sm"
+                                            >＋ 追加</button>
+                                        </div>
+                                        <div v-if="editForm.defects.length > 0" class="space-y-3">
+                                            <div
+                                                v-for="(defect, i) in editForm.defects"
+                                                :key="i"
+                                                class="bg-gray-50 rounded-lg p-3 border border-gray-300"
+                                            >
+                                                <div class="flex gap-2 items-end">
+                                                    <div class="flex-1">
+                                                        <label class="block text-xs font-semibold text-gray-700 mb-1">不良種類</label>
+                                                        <select
+                                                            v-model="defect.defect_type_id"
+                                                            class="w-full h-11 text-sm rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                                                        >
+                                                            <option value="">選択してください</option>
+                                                            <option v-for="type in defectTypes" :key="type.id" :value="type.id">{{ type.name }}</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="w-20">
+                                                        <label class="block text-xs font-semibold text-gray-700 mb-1">数量</label>
+                                                        <input
+                                                            v-model.number="defect.defect_quantity"
+                                                            type="number"
+                                                            min="1"
+                                                            class="w-full h-11 text-sm rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-2"
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        @click="editRemoveDefect(i)"
+                                                        class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg h-11 text-sm shadow-sm"
+                                                    >削除</button>
+                                                </div>
+                                            </div>
+                                            <div
+                                                class="text-sm font-semibold p-2 rounded-lg"
+                                                :class="editIsDefectQuantityValid ? 'bg-green-50 text-green-700 border border-green-300' : 'bg-red-50 text-red-700 border border-red-300'"
+                                            >
+                                                合計: {{ editTotalDefectQuantity }} / 不良数: {{ editForm.quantity_ng }}
+                                                <span v-if="!editIsDefectQuantityValid" class="block mt-1">⚠ 不良内訳の合計が不良数と一致していません</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- エラー -->
+                                    <div v-if="editForm.errors.error" class="p-4 bg-red-100 border-2 border-red-400 text-red-700 rounded-lg font-semibold">
+                                        {{ editForm.errors.error }}
+                                    </div>
+                                </form>
+
+                                <!-- フッター：編集モード -->
+                                <div class="bg-white border-t border-gray-200 px-4 py-3 grid grid-cols-5 gap-2">
+                                    <button
+                                        type="button"
+                                        @click="closeEdit"
+                                        class="col-span-2 h-12 bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-gray-800 font-bold rounded-xl shadow-sm transition"
+                                    >キャンセル</button>
+                                    <button
+                                        type="button"
+                                        @click="submitEdit"
+                                        :disabled="editForm.processing"
+                                        class="col-span-3 h-12 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-xl shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >{{ editForm.processing ? '更新中...' : '✓ 保存する' }}</button>
+                                </div>
+                            </template>
                         </div>
                     </Transition>
                 </div>

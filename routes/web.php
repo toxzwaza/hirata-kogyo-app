@@ -49,6 +49,7 @@ Route::prefix('staff')->name('mobile.')->group(function () {
     // 作業実績登録（スマホ用）
     Route::get('/work-records/create', [WorkRecordController::class, 'createForMobile'])->name('work-records.create');
     Route::post('/work-records', [WorkRecordController::class, 'storeForMobile'])->middleware('auth')->name('work-records.store');
+    Route::patch('/work-records/{workRecord}', [WorkRecordController::class, 'updateForMobile'])->middleware('auth')->name('work-records.update');
 });
 
 Route::middleware('auth')->group(function () {

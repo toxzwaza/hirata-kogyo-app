@@ -78,7 +78,7 @@ const formatDate = (date) => {
 };
 
 const formatNumber = (num) => {
-    return new Intl.NumberFormat('ja-JP', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+    return new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 }).format(num);
 };
 
 // 適用状況の使用テキスト（作業実績・請求書での使用状況）
@@ -251,7 +251,7 @@ const applicationStatusText = (rate) => {
                                         {{ rate.active_flg !== false ? '有効' : '無効' }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-700">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <span v-if="applicationStatusText(rate)" class="text-gray-600">
                                         {{ applicationStatusText(rate) }}
                                     </span>

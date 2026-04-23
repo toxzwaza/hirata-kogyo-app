@@ -39,7 +39,8 @@ const formatDate = (date) => {
 };
 
 const formatNumber = (num) => {
-    return new Intl.NumberFormat('ja-JP').format(num);
+    if (num === null || num === undefined) return '-';
+    return new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 }).format(Math.floor(Number(num)));
 };
 
 const getStatusLabel = (status) => {

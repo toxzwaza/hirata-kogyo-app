@@ -90,10 +90,17 @@
             font-size: 12pt;
         }
 
-        .summary {
-            width: 50%;
+        .middle {
+            display: table;
+            width: 100%;
             margin-bottom: 6px;
+        }
+
+        .summary {
+            display: table-cell;
+            width: 55%;
             font-size: 11pt;
+            vertical-align: top;
         }
 
         .summary table {
@@ -114,10 +121,11 @@
         }
 
         .issuer {
+            display: table-cell;
+            width: 45%;
+            vertical-align: top;
             text-align: right;
-            margin-top: -60px;
             font-size: 11pt;
-            position: relative;
         }
 
         .issuer-name {
@@ -289,34 +297,35 @@
         </div>
         <p class="message">下記のとおり、御請求申し上げます。</p>
 
-        <!-- 概要 -->
-        <div class="summary">
-            <table>
-                <tr>
-                    <th>件名</th>
-                    <td>請求期間: {{ $invoice->period_from->format('Y年n月j日') }} ～ {{ $invoice->period_to->format('Y年n月j日') }}</td>
-                </tr>
-                @if($invoice->staff->bank_name)
+        <!-- 概要（件名/振込先 ＋ 事業者を横並び） -->
+        <div class="middle">
+            <div class="summary">
+                <table>
                     <tr>
-                        <th>振込先</th>
-                        <td>{{ $invoice->staff->bank_name }} {{ $invoice->staff->branch_name ?? '' }} {{ $invoice->staff->account_type ?? '' }} {{ $invoice->staff->account_number ?? '' }}</td>
+                        <th>件名</th>
+                        <td>請求期間: {{ $invoice->period_from->format('Y年n月j日') }} ～ {{ $invoice->period_to->format('Y年n月j日') }}</td>
                     </tr>
-                @endif
-            </table>
-        </div>
+                    @if($invoice->staff->bank_name)
+                        <tr>
+                            <th>振込先</th>
+                            <td>{{ $invoice->staff->bank_name }} {{ $invoice->staff->branch_name ?? '' }} {{ $invoice->staff->account_type ?? '' }} {{ $invoice->staff->account_number ?? '' }}</td>
+                        </tr>
+                    @endif
+                </table>
+            </div>
 
-        <!-- 事業者 -->
-        <div class="issuer">
-            <p class="issuer-name">{{ $invoice->staff->name }}</p>
-            @if($invoice->staff->postal_code)
-                <p>〒{{ $invoice->staff->postal_code }}</p>
-            @endif
-            @if($invoice->staff->address)
-                <p>{{ $invoice->staff->address }}</p>
-            @endif
-            @if($invoice->staff->phone)
-                <p>TEL：{{ $invoice->staff->phone }}</p>
-            @endif
+            <div class="issuer">
+                <p class="issuer-name">{{ $invoice->staff->name }}</p>
+                @if($invoice->staff->postal_code)
+                    <p>〒{{ $invoice->staff->postal_code }}</p>
+                @endif
+                @if($invoice->staff->address)
+                    <p>{{ $invoice->staff->address }}</p>
+                @endif
+                @if($invoice->staff->phone)
+                    <p>TEL：{{ $invoice->staff->phone }}</p>
+                @endif
+            </div>
         </div>
 
         <!-- 合計 -->

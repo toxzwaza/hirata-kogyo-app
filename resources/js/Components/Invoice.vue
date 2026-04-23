@@ -69,7 +69,7 @@
     <!-- 合計 -->
     <div class="total-box">
       <span>合計</span>
-      <span class="total-amount">¥{{ totalAmount.toLocaleString() }}</span>
+      <span class="total-amount">¥{{ formatNumber(totalAmount) }}</span>
     </div>
 
     <!-- 明細 -->
@@ -191,8 +191,11 @@
 
     <!-- 注意書き -->
     <div class="footer">
-      <p>
+      <p v-if="type === 'staff'">
         当社は消費税の免税事業者です。本請求書には消費税額を明記しておりません。
+      </p>
+      <p v-else-if="type === 'client'">
+        当社は適格請求書発行事業者です（登録番号：T4260001040131）。消費税額（10%）は上表のとおりです。
       </p>
     </div>
 
@@ -229,7 +232,7 @@ const props = defineProps({
 });
 
 const formatNumber = (num) => {
-  return new Intl.NumberFormat('ja-JP').format(num || 0);
+  return new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 }).format(Math.floor(Number(num) || 0));
 };
 
 const totalAmount = computed(() => {
@@ -403,7 +406,8 @@ const tableClass = computed(() => {
 }
 
 .summary {
-  width: 50%;
+  width: 55%;
+  float: left;
   margin-bottom: 6px;
   font-size: 11px;
   flex-shrink: 0;
@@ -427,8 +431,9 @@ const tableClass = computed(() => {
 }
 
 .issuer {
+  width: 45%;
+  float: right;
   text-align: right;
-  margin-top: -60px;
   font-size: 11px;
   flex-shrink: 0;
   position: relative;
@@ -453,6 +458,7 @@ const tableClass = computed(() => {
 }
 
 .total-box {
+  clear: both;
   display: flex;
   justify-content: space-between;
   width: 280px;

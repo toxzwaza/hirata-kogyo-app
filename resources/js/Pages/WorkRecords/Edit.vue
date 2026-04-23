@@ -357,7 +357,7 @@ const deleteRecord = () => {
                                             :class="{ 'border-red-500': form.errors.start_time }"
                                         >
                                             <option
-                                                v-for="h in Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))"
+                                                v-for="h in Array.from({ length: 18 }, (_, i) => String(i + 6).padStart(2, '0'))"
                                                 :key="h"
                                                 :value="h"
                                             >
@@ -411,7 +411,7 @@ const deleteRecord = () => {
                                             :class="{ 'border-red-500': form.errors.end_time }"
                                         >
                                             <option
-                                                v-for="h in Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))"
+                                                v-for="h in Array.from({ length: 18 }, (_, i) => String(i + 6).padStart(2, '0'))"
                                                 :key="h"
                                                 :value="h"
                                             >

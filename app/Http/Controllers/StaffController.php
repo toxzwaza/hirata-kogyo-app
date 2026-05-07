@@ -68,10 +68,26 @@ class StaffController extends Controller
         $staff->load('staffType');
         $staffTypes = StaffType::orderBy('name')->get();
 
+        $mobileLoginUrl = $staff->mobile_login_token
+            ? route('mobile.work-records.create', ['token' => $staff->mobile_login_token])
+            : null;
+
         return Inertia::render('Staff/Edit', [
             'staff' => $staff,
             'staffTypes' => $staffTypes,
+            'mobileLoginToken' => $staff->mobile_login_token,
+            'mobileLoginUrl' => $mobileLoginUrl,
         ]);
+    }
+
+    /**
+     * スマホ自動ログイン用トークンを再発行
+     */
+    public function regenerateMobileLoginToken(Staff $staff)
+    {
+        $staff->regenerateMobileLoginToken();
+
+        return back()->with('success', 'スマホ自動ログインのトークンを再発行しました。新しいQRコードを印刷してください。');
     }
 
     public function update(UpdateStaffRequest $request, Staff $staff)

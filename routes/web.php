@@ -24,15 +24,17 @@ use Inertia\Inertia;
 | contains the "web" middleware group. Now create something great!
 |
 */
-Route::get('/__debug', function () {
-    return response()->json([
-        'scheme' => request()->getScheme(),
-        'secure' => request()->isSecure(),
-        'xfp'    => request()->header('x-forwarded-proto'),
-        'host'   => request()->getHost(),
-        'url'    => request()->fullUrl(),
-    ]);
-});
+if (! app()->environment('production')) {
+    Route::get('/__debug', function () {
+        return response()->json([
+            'scheme' => request()->getScheme(),
+            'secure' => request()->isSecure(),
+            'xfp'    => request()->header('x-forwarded-proto'),
+            'host'   => request()->getHost(),
+            'url'    => request()->fullUrl(),
+        ]);
+    });
+}
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -81,6 +83,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('work-methods', WorkMethodController::class);
     Route::post('work-rates/relink-work-records', [WorkRateController::class, 'relinkWorkRecords'])->name('work-rates.relink-work-records');
     Route::resource('work-rates', WorkRateController::class);
+    Route::post('staff/{staff}/regenerate-mobile-login-token', [StaffController::class, 'regenerateMobileLoginToken'])
+        ->name('staff.regenerate-mobile-login-token');
     Route::resource('staff', StaffController::class);
     Route::resource('defect-types', DefectTypeController::class);
 });

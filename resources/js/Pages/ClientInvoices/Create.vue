@@ -5,10 +5,12 @@ import { ref, computed, onMounted } from 'vue';
 
 const props = defineProps({
     staffInvoices: Array,
+    clients: Array,
     filters: Object,
 });
 
 const form = useForm({
+    client_id: props.clients?.length === 1 ? props.clients[0].id : '',
     staff_invoice_ids: [],
     period_from: '',
     period_to: '',
@@ -103,6 +105,28 @@ const submit = () => {
                 <div class="bg-white shadow-sm rounded-lg p-6">
                     <form @submit.prevent="submit">
                         <div class="space-y-6">
+                            <!-- 請求先（客先） -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">請求先（客先） *</label>
+                                <select
+                                    v-model="form.client_id"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                    :class="{ 'border-red-500': form.errors.client_id }"
+                                >
+                                    <option value="">選択してください</option>
+                                    <option
+                                        v-for="client in clients"
+                                        :key="client.id"
+                                        :value="client.id"
+                                    >
+                                        {{ client.name }}
+                                    </option>
+                                </select>
+                                <p v-if="form.errors.client_id" class="mt-1 text-sm text-red-600">
+                                    {{ form.errors.client_id }}
+                                </p>
+                            </div>
+
                             <!-- 請求期間 -->
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
@@ -260,7 +284,7 @@ const submit = () => {
                             </a>
                             <button
                                 type="submit"
-                                :disabled="form.processing || form.staff_invoice_ids.length === 0"
+                                :disabled="form.processing || form.staff_invoice_ids.length === 0 || !form.client_id"
                                 class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
                             >
                                 {{ form.processing ? '作成中...' : '作成' }}

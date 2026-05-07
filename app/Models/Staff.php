@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * スタッフモデル
@@ -24,6 +25,7 @@ class Staff extends Authenticatable
         'name_kana',
         'login_id',
         'password',
+        'mobile_login_token',
         'address',
         'tel',
         'email',
@@ -38,6 +40,7 @@ class Staff extends Authenticatable
 
     protected $hidden = [
         'password',
+        'mobile_login_token',
     ];
 
     protected $casts = [
@@ -98,6 +101,32 @@ class Staff extends Authenticatable
     public function isContractor(): bool
     {
         return $this->staffType->name === '個人事業主';
+    }
+
+    /**
+     * スマホ自動ログイン用トークンを再発行して返す
+     */
+    public function regenerateMobileLoginToken(): string
+    {
+        do {
+            $token = Str::random(48);
+        } while (static::where('mobile_login_token', $token)->where('id', '!=', $this->id)->exists());
+
+        $this->forceFill(['mobile_login_token' => $token])->save();
+
+        return $token;
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Staff $staff): void {
+            if (empty($staff->mobile_login_token)) {
+                do {
+                    $token = Str::random(48);
+                } while (static::where('mobile_login_token', $token)->exists());
+                $staff->mobile_login_token = $token;
+            }
+        });
     }
 }
 

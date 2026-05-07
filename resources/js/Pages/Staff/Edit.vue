@@ -1,11 +1,32 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 
 const props = defineProps({
     staff: Object,
     staffTypes: Array,
+    mobileLoginToken: { type: String, default: null },
+    mobileLoginUrl: { type: String, default: null },
 });
+
+const copyMobileLoginUrl = async () => {
+    if (!props.mobileLoginUrl) return;
+    try {
+        await navigator.clipboard.writeText(props.mobileLoginUrl);
+        alert('スマホ用URLをコピーしました。');
+    } catch (e) {
+        alert('コピーに失敗しました。手動で選択してコピーしてください。');
+    }
+};
+
+const regenerateMobileToken = () => {
+    if (!confirm('スマホ自動ログイン用のトークンを再発行しますか？\n再発行すると現在のQRコード／URLは使えなくなります。')) {
+        return;
+    }
+    router.post(route('staff.regenerate-mobile-login-token', props.staff.id), {}, {
+        preserveScroll: true,
+    });
+};
 
 const form = useForm({
     staff_type_id: props.staff.staff_type_id,
@@ -282,6 +303,50 @@ const deleteStaff = () => {
                                     <p v-if="form.errors.account_number" class="mt-1 text-sm text-red-600">
                                         {{ form.errors.account_number }}
                                     </p>
+                                </div>
+                            </div>
+
+                            <!-- スマホ自動ログイン -->
+                            <div class="border-t border-gray-200 pt-6 mt-6">
+                                <h3 class="text-lg font-medium text-gray-900 mb-4">スマホ自動ログイン</h3>
+                                <p class="text-sm text-gray-600 mb-3">
+                                    下記URLをQRコード化してスタッフに渡すと、QR読み取りで自動ログインして作業実績入力画面に遷移します。
+                                </p>
+                                <div v-if="mobileLoginUrl" class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-700">スマホ用URL</label>
+                                    <textarea
+                                        :value="mobileLoginUrl"
+                                        readonly
+                                        rows="2"
+                                        class="block w-full rounded-md border-gray-300 shadow-sm bg-gray-50 text-xs font-mono"
+                                        @focus="$event.target.select()"
+                                    ></textarea>
+                                    <div class="flex gap-2">
+                                        <button
+                                            type="button"
+                                            @click="copyMobileLoginUrl"
+                                            class="bg-gray-500 hover:bg-gray-700 text-white text-sm font-bold py-2 px-4 rounded"
+                                        >
+                                            URLをコピー
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click="regenerateMobileToken"
+                                            class="bg-orange-500 hover:bg-orange-700 text-white text-sm font-bold py-2 px-4 rounded"
+                                        >
+                                            トークンを再発行
+                                        </button>
+                                    </div>
+                                </div>
+                                <div v-else class="space-y-2">
+                                    <p class="text-sm text-red-600">トークンが未発行です。下のボタンから発行してください。</p>
+                                    <button
+                                        type="button"
+                                        @click="regenerateMobileToken"
+                                        class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-2 px-4 rounded"
+                                    >
+                                        トークンを発行
+                                    </button>
                                 </div>
                             </div>
                         </div>

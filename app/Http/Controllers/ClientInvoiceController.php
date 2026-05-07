@@ -76,13 +76,16 @@ class ClientInvoiceController extends Controller
         // 期間フィルタ
         if ($request->filled('period_from') && $request->filled('period_to')) {
             $staffInvoices = $staffInvoices->filter(function ($invoice) use ($request) {
-                return $invoice->period_from >= $request->period_from 
+                return $invoice->period_from >= $request->period_from
                     && $invoice->period_to <= $request->period_to;
             });
         }
 
+        $clients = Client::orderBy('name')->get();
+
         return Inertia::render('ClientInvoices/Create', [
             'staffInvoices' => $staffInvoices,
+            'clients' => $clients,
             'filters' => $request->only(['period_from', 'period_to']),
         ]);
     }
@@ -93,14 +96,8 @@ class ClientInvoiceController extends Controller
     public function store(CreateClientInvoiceRequest $request)
     {
         try {
-            // 固定の客先名「株式会社○○」を使用（存在しない場合は作成）
-            $client = Client::firstOrCreate(
-                ['name' => '株式会社○○'],
-                ['name_kana' => '']
-            );
-            
             $invoice = $this->clientInvoiceService->createInvoice(
-                $client->id,
+                $request->client_id,
                 $request->staff_invoice_ids,
                 $request->period_from,
                 $request->period_to
@@ -354,9 +351,9 @@ class ClientInvoiceController extends Controller
         $html1 = view('pdf.client-invoice', [
             'invoice' => $clientInvoice,
             'type' => 'client',
-            'clientName' => '株式会社○○',
-            'clientPostal' => '',
-            'clientAddress' => '',
+            'clientName' => $clientInvoice->client?->name ?? '',
+            'clientPostal' => $clientInvoice->client?->postal_code ?? '',
+            'clientAddress' => $clientInvoice->client?->address ?? '',
             'clientItems' => $clientItems,
             'calculatedSubtotal' => $subtotalForInvoice,
             'calculatedTax' => $taxForInvoice,

@@ -13,6 +13,7 @@ use App\Models\WorkRate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
@@ -102,23 +103,41 @@ class WorkRecordController extends Controller
 
     /**
      * 作業実績登録画面（スマホ用）
+     *
+     * 認証は ?token=xxxx で渡された mobile_login_token を照合してログインさせる。
+     * 旧 ?staff_id=N 方式は config('mobile.legacy_staff_id_enabled') の間だけ
+     * 暫定的に許容する（QRステッカー切替期間用）。
      */
     public function createForMobile(Request $request)
     {
-        // staff_idパラメータが指定されている場合、そのIDでログイン処理を行う
-        if ($request->has('staff_id') && !auth()->check()) {
-            $staffId = $request->input('staff_id');
-            $staff = Staff::where('id', $staffId)
-                ->where('active_flag', true)
-                ->first();
-            
-            if ($staff) {
-                // パスワードチェックなしでログイン（危険だが、とりあえず）
-                Auth::guard('web')->login($staff);
-                $request->session()->regenerate();
+        if (! auth()->check()) {
+            $token = $request->query('token');
+
+            if ($token) {
+                $staff = Staff::where('mobile_login_token', $token)
+                    ->where('active_flag', true)
+                    ->first();
+
+                if ($staff) {
+                    Auth::guard('web')->login($staff);
+                    $request->session()->regenerate();
+                }
+            } elseif (config('mobile.legacy_staff_id_enabled') && $request->filled('staff_id')) {
+                $staff = Staff::where('id', $request->input('staff_id'))
+                    ->where('active_flag', true)
+                    ->first();
+
+                if ($staff) {
+                    Log::warning('Mobile legacy staff_id auto-login used', [
+                        'staff_id' => $staff->id,
+                        'ip' => $request->ip(),
+                    ]);
+                    Auth::guard('web')->login($staff);
+                    $request->session()->regenerate();
+                }
             }
         }
-        
+
         // ログイン中のスタッフを取得
         // 注意: auth()->id()はlogin_idを返すため、auth()->user()->idを使用
         $currentStaff = auth()->user();

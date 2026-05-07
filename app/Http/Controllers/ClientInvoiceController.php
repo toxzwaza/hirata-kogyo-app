@@ -125,12 +125,8 @@ class ClientInvoiceController extends Controller
             'staffInvoiceItems.staffInvoice.details.workRecord.workRate',
         ]);
 
-        $invoiceData = $clientInvoice->toArray();
-        // 支払い期限を日付のみで返す（JSON 時の UTC 変換で前日になるのを防ぐ）
-        $invoiceData['payment_due_date'] = $clientInvoice->payment_due_date?->format('Y-m-d');
-
         return Inertia::render('ClientInvoices/Show', [
-            'invoice' => $invoiceData,
+            'invoice' => $clientInvoice->toArray(),
         ]);
     }
 

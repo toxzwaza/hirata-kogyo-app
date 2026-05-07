@@ -29,10 +29,10 @@ class ClientInvoice extends Model
     ];
 
     protected $casts = [
-        'issue_date' => 'date',
-        'payment_due_date' => 'date',
-        'period_from' => 'date',
-        'period_to' => 'date',
+        'issue_date' => 'date:Y-m-d',
+        'payment_due_date' => 'date:Y-m-d',
+        'period_from' => 'date:Y-m-d',
+        'period_to' => 'date:Y-m-d',
         'subtotal' => 'decimal:2',
         'adjustment_amount' => 'decimal:2',
         'tax' => 'decimal:2',

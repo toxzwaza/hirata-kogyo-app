@@ -111,8 +111,6 @@ class StaffInvoiceController extends Controller
 
         // 各行の作業単価詳細（ツールチップ用）を付与
         $invoiceArray = $staffInvoice->toArray();
-        // 支払い期限を日付のみで返す（JSON 時の UTC 変換で前日になるのを防ぐ）
-        $invoiceArray['payment_due_date'] = $staffInvoice->payment_due_date?->format('Y-m-d');
         foreach ($invoiceArray['details'] as $i => $detailArray) {
             $detail = $staffInvoice->details[$i];
             $workRecord = $detail->workRecord;

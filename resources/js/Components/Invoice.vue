@@ -232,7 +232,7 @@ const props = defineProps({
 });
 
 const formatNumber = (num) => {
-  return new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 }).format(Math.floor(Number(num) || 0));
+  return new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 }).format(Math.round(Number(num) || 0));
 };
 
 const totalAmount = computed(() => {

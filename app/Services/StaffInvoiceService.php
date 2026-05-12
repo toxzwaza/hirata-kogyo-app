@@ -70,8 +70,12 @@ class StaffInvoiceService
                 $isOvertime = $workRecord->isOvertime();
                 $unitPrice = $workRecord->workRate->getRateForStaff($staff, $isOvertime);
 
-                // 金額を計算（重量 × 単価）
-                $amount = $weight * $unitPrice;
+                // 金額を計算（実績数 × 四捨五入した個単価）
+                // 個単価(円/個) = 1個あたり重量(kg/個) × kg単価(円/kg) → round で円単位に四捨五入
+                $weightPerUnit = (float) $workRecord->drawing->weight_per_unit;
+                $totalQuantity = (int) $workRecord->total_quantity;
+                $perPiecePrice = round($weightPerUnit * $unitPrice);
+                $amount = $totalQuantity * $perPiecePrice;
 
                 // 明細説明を生成
                 $description = sprintf(

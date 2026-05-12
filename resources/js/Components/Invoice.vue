@@ -147,6 +147,22 @@
                 </div>
               </section>
 
+              <!-- 個単価 -->
+              <section v-if="item.rateTooltip.unit_per_piece" class="tt-section">
+                <header class="tt-section-title">個単価</header>
+                <div class="tt-formula">
+                  <span class="tt-mono">{{ formatWeight(item.rateTooltip.unit_per_piece.weight_per_unit) }} kg/個</span>
+                  <span class="tt-op">×</span>
+                  <span class="tt-mono">¥{{ formatRate(item.rateTooltip.unit_per_piece.kg_rate) }}/kg</span>
+                  <span class="tt-op">=</span>
+                  <strong class="tt-mono">¥{{ formatRaw(item.rateTooltip.unit_per_piece.raw) }}/個</strong>
+                </div>
+                <div class="tt-formula tt-formula-result">
+                  <span class="tt-arrow">→ 表示</span>
+                  <strong class="tt-mono">¥{{ formatNumber(item.rateTooltip.unit_per_piece.display) }}/個</strong>
+                </div>
+              </section>
+
               <!-- 数量・重量 -->
               <section v-if="item.rateTooltip.quantity" class="tt-section">
                 <header class="tt-section-title">数量・重量</header>
@@ -173,15 +189,18 @@
               <section v-if="item.rateTooltip.amount" class="tt-section tt-section-amount">
                 <header class="tt-section-title">金額</header>
                 <div class="tt-formula">
-                  <span class="tt-mono">{{ formatWeight(item.rateTooltip.amount.weight) }}</span>
+                  <span class="tt-mono">{{ formatInt(item.rateTooltip.quantity.total) }}個</span>
                   <span class="tt-op">×</span>
-                  <span class="tt-mono">¥{{ formatRate(item.rateTooltip.amount.unit_price) }}</span>
+                  <span class="tt-mono">¥{{ formatNumber(item.rateTooltip.unit_per_piece.display) }}/個</span>
                   <span class="tt-op">=</span>
-                  <strong class="tt-mono">¥{{ formatRaw(item.rateTooltip.amount.raw) }}</strong>
+                  <strong class="tt-mono">¥{{ formatNumber(item.rateTooltip.quantity.total * item.rateTooltip.unit_per_piece.display) }}</strong>
                 </div>
                 <div class="tt-formula tt-formula-result">
                   <span class="tt-arrow">→ 表示</span>
                   <strong class="tt-mono">¥{{ formatNumber(item.rateTooltip.amount.display) }}</strong>
+                </div>
+                <div class="tt-note tt-note-muted">
+                  参考: 重量 {{ formatWeight(item.rateTooltip.amount.weight) }} kg × ¥{{ formatRate(item.rateTooltip.amount.unit_price) }}/kg = ¥{{ formatRaw(item.rateTooltip.amount.raw) }}
                 </div>
                 <div v-if="item.rateTooltip.amount.hourly" class="tt-note tt-note-muted">
                   時給換算 ¥{{ formatNumber(item.rateTooltip.amount.hourly) }}/h

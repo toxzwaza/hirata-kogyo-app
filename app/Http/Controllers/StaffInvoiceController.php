@@ -335,6 +335,8 @@ class StaffInvoiceController extends Controller
         $unitPrice = (float) $detail->unit_price;
         $rawAmount = $weight * $unitPrice;
         $hours = $workRecord->work_minutes ? round($workRecord->work_minutes / 60, 2) : null;
+        $weightPerUnit = (float) $drawing->weight_per_unit;
+        $perPieceRaw = $weightPerUnit * $unitPrice;
 
         return [
             'time' => [
@@ -367,12 +369,18 @@ class StaffInvoiceController extends Controller
                     ? round($workRecord->quantity_ng / $totalQty * 100, 1)
                     : 0,
             ],
+            'unit_per_piece' => [
+                'weight_per_unit' => $weightPerUnit,
+                'kg_rate' => $unitPrice,
+                'raw' => round($perPieceRaw, 4),
+                'display' => round($perPieceRaw),
+            ],
             'amount' => [
                 'weight' => $weight,
                 'unit_price' => $unitPrice,
                 'raw' => round($rawAmount, 4),
-                'display' => round($rawAmount),
-                'hourly' => $hours ? round($rawAmount / $hours) : null,
+                'display' => (int) round((float) $detail->amount),
+                'hourly' => $hours ? round((float) $detail->amount / $hours) : null,
             ],
         ];
     }

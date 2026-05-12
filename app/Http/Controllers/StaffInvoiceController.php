@@ -111,20 +111,10 @@ class StaffInvoiceController extends Controller
 
         // 各行の作業単価詳細（ツールチップ用）を付与
         $invoiceArray = $staffInvoice->toArray();
+        $staff = $staffInvoice->staff;
         foreach ($invoiceArray['details'] as $i => $detailArray) {
             $detail = $staffInvoice->details[$i];
-            $workRecord = $detail->workRecord;
-            $workRate = $workRecord->workRate;
-            $staff = $staffInvoice->staff;
-            $isOvertime = $workRecord->isOvertime();
-            $invoiceArray['details'][$i]['rate_tooltip'] = [
-                'start_time_display' => $workRecord->start_time
-                    ? $workRecord->start_time->format('Y年n月j日 H:i')
-                    : '',
-                'rate_normal' => round($workRate->getRateForStaff($staff, false), 2),
-                'rate_overtime' => round($workRate->getRateForStaff($staff, true), 2),
-                'is_overtime' => $isOvertime,
-            ];
+            $invoiceArray['details'][$i]['rate_tooltip'] = $this->buildRateTooltip($detail, $staff);
         }
 
         return Inertia::render('StaffInvoices/Show', [
@@ -321,6 +311,70 @@ class StaffInvoiceController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
+    }
+
+    /**
+     * 明細行のツールチップ表示用ペイロードを生成
+     */
+    private function buildRateTooltip(\App\Models\StaffInvoiceDetail $detail, Staff $staff): array
+    {
+        $workRecord = $detail->workRecord;
+        $workRate = $workRecord->workRate;
+        $drawing = $workRecord->drawing;
+        $isOvertime = $workRecord->isOvertime();
+        $isEmployee = $staff->isEmployee();
+
+        if ($isEmployee) {
+            $appliedLabel = '社員単価';
+        } else {
+            $appliedLabel = $isOvertime ? '事業主単価（残業）' : '事業主単価（通常）';
+        }
+
+        $totalQty = (int) $workRecord->total_quantity;
+        $weight = (float) $workRecord->total_weight;
+        $unitPrice = (float) $detail->unit_price;
+        $rawAmount = $weight * $unitPrice;
+        $hours = $workRecord->work_minutes ? round($workRecord->work_minutes / 60, 2) : null;
+
+        return [
+            'time' => [
+                'start' => $workRecord->start_time?->format('Y/n/j H:i'),
+                'end' => $workRecord->end_time?->format('Y/n/j H:i'),
+                'minutes' => $workRecord->work_minutes,
+                'hours' => $hours,
+                'method' => $workRecord->workMethod?->name,
+            ],
+            'rate' => [
+                'staff_type_label' => $staff->staffType?->name,
+                'applied_label' => $appliedLabel,
+                'applied_value' => round($workRate->getRateForStaff($staff, $isOvertime), 2),
+                'is_overtime' => $isOvertime,
+                'overtime_reason' => $isOvertime ? '開始時刻が17:00以降のため残業適用' : null,
+                'rate_employee' => (float) $workRate->rate_employee,
+                'rate_contractor' => (float) $workRate->rate_contractor,
+                'rate_overtime' => (float) $workRate->rate_overtime,
+                'work_rate_id' => $workRate->id,
+                'effective_from' => $workRate->effective_from?->format('Y/n/j'),
+                'effective_to' => $workRate->effective_to?->format('Y/n/j'),
+            ],
+            'quantity' => [
+                'good' => (int) $workRecord->quantity_good,
+                'ng' => (int) $workRecord->quantity_ng,
+                'total' => $totalQty,
+                'weight_per_unit' => (float) $drawing->weight_per_unit,
+                'total_weight' => $weight,
+                'defect_rate' => $totalQty > 0
+                    ? round($workRecord->quantity_ng / $totalQty * 100, 1)
+                    : 0,
+            ],
+            'amount' => [
+                'weight' => $weight,
+                'unit_price' => $unitPrice,
+                'raw' => round($rawAmount, 4),
+                'display' => round($rawAmount),
+                'hourly' => $hours ? round($rawAmount / $hours) : null,
+            ],
+        ];
     }
 }
 

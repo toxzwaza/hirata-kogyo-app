@@ -188,10 +188,11 @@ const staffTotals = computed(() => {
           const quantity =
             (workRecord?.quantity_good || 0) + (workRecord?.quantity_ng || 0);
           const weightPerUnit = drawing?.weight_per_unit || 0;
-          const totalWeight = quantity * weightPerUnit;
           const unitPrice = workRate?.rate_employee || 0;
-          const amount = totalWeight * unitPrice;
-          
+          // 新方式: 数量 × round(1個重量 × kg単価)
+          const perPiecePrice = Math.round(weightPerUnit * unitPrice);
+          const amount = quantity * perPiecePrice;
+
           sum += amount;
         });
         
@@ -280,8 +281,9 @@ const staffWorkItems = computed(() => {
       // 単価（rate_employeeを使用）
       const unitPrice = workRate?.rate_employee || 0;
 
-      // 金額（総重量 × 単価）
-      const amount = totalWeight * unitPrice;
+      // 新方式: 数量 × round(1個重量 × kg単価)
+      const perPiecePrice = Math.round(weightPerUnit * unitPrice);
+      const amount = quantity * perPiecePrice;
 
       allItems.push({
         date,
@@ -294,6 +296,7 @@ const staffWorkItems = computed(() => {
         unitPrice,
         amount,
         staffName: staffInvoice?.staff?.name || "",
+        rateTooltip: detail.rate_tooltip || null,
       });
     });
   });

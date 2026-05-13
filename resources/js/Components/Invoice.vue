@@ -90,7 +90,7 @@
         <tr
           v-for="(item, index) in workItems"
           :key="index"
-          class="staff-row-with-tooltip"
+          :class="['staff-row-with-tooltip', { 'amount-zero': Number(item.amount) === 0 }]"
           @mouseenter="onRowHover"
         >
           <td class="td-with-tooltip">
@@ -266,8 +266,122 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(item, index) in workItems" :key="index">
-          <td>{{ item.date }}</td>
+        <tr
+          v-for="(item, index) in workItems"
+          :key="index"
+          :class="['client-detail-row-with-tooltip', { 'amount-zero': Number(item.amount) === 0 }]"
+          @mouseenter="onRowHover"
+        >
+          <td class="td-with-tooltip">
+            <div v-if="item.rateTooltip" class="rate-tooltip">
+              <!-- 時間 -->
+              <section v-if="item.rateTooltip.time" class="tt-section">
+                <header class="tt-section-title">時間</header>
+                <div class="tt-grid">
+                  <span class="tt-label">開始</span>
+                  <span class="tt-value">{{ item.rateTooltip.time.start || '—' }}</span>
+                  <span class="tt-label">終了</span>
+                  <span class="tt-value">
+                    {{ item.rateTooltip.time.end || '—' }}
+                    <span v-if="item.rateTooltip.time.minutes" class="tt-sub">
+                      （{{ item.rateTooltip.time.minutes }}分 / {{ item.rateTooltip.time.hours }}h）
+                    </span>
+                  </span>
+                  <template v-if="item.rateTooltip.time.method">
+                    <span class="tt-label">方法</span>
+                    <span class="tt-value">{{ item.rateTooltip.time.method }}</span>
+                  </template>
+                </div>
+              </section>
+
+              <!-- 単価 -->
+              <section v-if="item.rateTooltip.rate" class="tt-section">
+                <header class="tt-section-title">単価</header>
+                <div class="tt-applied-row">
+                  <span class="tt-applied-badge">適用中</span>
+                  <span class="tt-applied-text">
+                    {{ item.rateTooltip.rate.applied_label }}
+                    <strong>¥{{ formatRate(item.rateTooltip.rate.applied_value) }}/kg</strong>
+                  </span>
+                </div>
+                <div class="tt-grid tt-grid-rates">
+                  <span class="tt-label">社員</span>
+                  <span class="tt-value tt-mono">¥{{ formatRate(item.rateTooltip.rate.rate_employee) }}/kg</span>
+                  <span class="tt-label">事業主(通常)</span>
+                  <span class="tt-value tt-mono">¥{{ formatRate(item.rateTooltip.rate.rate_contractor) }}/kg</span>
+                  <span class="tt-label">事業主(残業)</span>
+                  <span class="tt-value tt-mono">¥{{ formatRate(item.rateTooltip.rate.rate_overtime) }}/kg</span>
+                </div>
+                <div class="tt-note tt-note-muted">
+                  単価ID #{{ item.rateTooltip.rate.work_rate_id }}
+                  <span v-if="item.rateTooltip.rate.effective_from">
+                    （{{ item.rateTooltip.rate.effective_from }}〜{{ item.rateTooltip.rate.effective_to || '' }}）
+                  </span>
+                </div>
+              </section>
+
+              <!-- 個単価 -->
+              <section v-if="item.rateTooltip.unit_per_piece" class="tt-section">
+                <header class="tt-section-title">個単価</header>
+                <div class="tt-formula">
+                  <span class="tt-mono">{{ formatWeight(item.rateTooltip.unit_per_piece.weight_per_unit) }} kg/個</span>
+                  <span class="tt-op">×</span>
+                  <span class="tt-mono">¥{{ formatRate(item.rateTooltip.unit_per_piece.kg_rate) }}/kg</span>
+                  <span class="tt-op">=</span>
+                  <strong class="tt-mono">¥{{ formatRaw(item.rateTooltip.unit_per_piece.raw) }}/個</strong>
+                </div>
+                <div class="tt-formula tt-formula-result">
+                  <span class="tt-arrow">→ 表示</span>
+                  <strong class="tt-mono">¥{{ formatNumber(item.rateTooltip.unit_per_piece.display) }}/個</strong>
+                </div>
+              </section>
+
+              <!-- 数量・重量 -->
+              <section v-if="item.rateTooltip.quantity" class="tt-section">
+                <header class="tt-section-title">数量・重量</header>
+                <div class="tt-formula">
+                  <span>良品 {{ formatInt(item.rateTooltip.quantity.good) }}個</span>
+                  <span class="tt-op">+</span>
+                  <span :class="{ 'tt-defect': item.rateTooltip.quantity.ng > 0 }">
+                    不良 {{ formatInt(item.rateTooltip.quantity.ng) }}個
+                  </span>
+                  <span class="tt-op">=</span>
+                  <strong>{{ formatInt(item.rateTooltip.quantity.total) }}個</strong>
+                </div>
+                <div class="tt-formula">
+                  <span>× {{ formatWeight(item.rateTooltip.quantity.weight_per_unit) }} kg/個</span>
+                  <span class="tt-op">=</span>
+                  <strong>{{ formatWeight(item.rateTooltip.quantity.total_weight) }} kg</strong>
+                </div>
+                <div v-if="item.rateTooltip.quantity.ng > 0" class="tt-note tt-defect">
+                  不良率 {{ item.rateTooltip.quantity.defect_rate }}%
+                </div>
+              </section>
+
+              <!-- 金額 -->
+              <section v-if="item.rateTooltip.amount" class="tt-section tt-section-amount">
+                <header class="tt-section-title">金額</header>
+                <div class="tt-formula">
+                  <span class="tt-mono">{{ formatInt(item.rateTooltip.quantity.total) }}個</span>
+                  <span class="tt-op">×</span>
+                  <span class="tt-mono">¥{{ formatNumber(item.rateTooltip.unit_per_piece.display) }}/個</span>
+                  <span class="tt-op">=</span>
+                  <strong class="tt-mono">¥{{ formatNumber(item.rateTooltip.quantity.total * item.rateTooltip.unit_per_piece.display) }}</strong>
+                </div>
+                <div class="tt-formula tt-formula-result">
+                  <span class="tt-arrow">→ 表示</span>
+                  <strong class="tt-mono">¥{{ formatNumber(item.rateTooltip.amount.display) }}</strong>
+                </div>
+                <div class="tt-note tt-note-muted">
+                  参考: 重量 {{ formatWeight(item.rateTooltip.amount.weight) }} kg × ¥{{ formatRate(item.rateTooltip.amount.unit_price) }}/kg = ¥{{ formatRaw(item.rateTooltip.amount.raw) }}
+                </div>
+                <div v-if="item.rateTooltip.amount.hourly" class="tt-note tt-note-muted">
+                  時給換算 ¥{{ formatNumber(item.rateTooltip.amount.hourly) }}/h
+                </div>
+              </section>
+            </div>
+            {{ item.date }}
+          </td>
           <td>{{ item.client }}</td>
           <td>{{ item.drawingNumber }}</td>
           <td>{{ item.productName }}</td>
@@ -695,27 +809,43 @@ const tableClass = computed(() => {
   width: 17%;
 }
 
-/* スタッフ請求書：行ホバー時の単価ツールチップ */
-.staff-row-with-tooltip {
+/* スタッフ請求書／客先請求書：行ホバー時の単価ツールチップ */
+.staff-row-with-tooltip,
+.client-detail-row-with-tooltip {
   position: relative;
 }
 
-.staff-row-with-tooltip .td-with-tooltip {
+.staff-row-with-tooltip .td-with-tooltip,
+.client-detail-row-with-tooltip .td-with-tooltip {
   position: relative;
   overflow: visible;
 }
 
 /* ホバー行の背景色ハイライト */
-.staff-row-with-tooltip > td {
+.staff-row-with-tooltip > td,
+.client-detail-row-with-tooltip > td {
   transition: background-color 120ms ease;
 }
 
-.staff-row-with-tooltip:hover > td {
+.staff-row-with-tooltip:hover > td,
+.client-detail-row-with-tooltip:hover > td {
   background-color: #eff6ff;
 }
 
+/* 金額0円（登録ミス疑い）の行ハイライト */
+.staff-row-with-tooltip.amount-zero > td,
+.client-detail-row-with-tooltip.amount-zero > td {
+  background-color: #fef2f2;
+}
+
+.staff-row-with-tooltip.amount-zero:hover > td,
+.client-detail-row-with-tooltip.amount-zero:hover > td {
+  background-color: #fee2e2;
+}
+
 /* ツールチップ本体（A案：白背景カード） */
-.staff-row-with-tooltip .rate-tooltip {
+.staff-row-with-tooltip .rate-tooltip,
+.client-detail-row-with-tooltip .rate-tooltip {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -740,7 +870,8 @@ const tableClass = computed(() => {
 }
 
 /* 矢印（下向き表示時：上方向の三角） */
-.staff-row-with-tooltip .rate-tooltip::before {
+.staff-row-with-tooltip .rate-tooltip::before,
+.client-detail-row-with-tooltip .rate-tooltip::before {
   content: "";
   position: absolute;
   bottom: 100%;
@@ -754,14 +885,17 @@ const tableClass = computed(() => {
 }
 
 .staff-row-with-tooltip:hover .rate-tooltip,
-.staff-row-with-tooltip:focus-within .rate-tooltip {
+.staff-row-with-tooltip:focus-within .rate-tooltip,
+.client-detail-row-with-tooltip:hover .rate-tooltip,
+.client-detail-row-with-tooltip:focus-within .rate-tooltip {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
 }
 
 /* 上向き反転（下端で発動） */
-.staff-row-with-tooltip.tooltip-flip-up .rate-tooltip {
+.staff-row-with-tooltip.tooltip-flip-up .rate-tooltip,
+.client-detail-row-with-tooltip.tooltip-flip-up .rate-tooltip {
   top: auto;
   bottom: 100%;
   margin-top: 0;
@@ -769,11 +903,13 @@ const tableClass = computed(() => {
   transform: translateY(4px);
 }
 
-.staff-row-with-tooltip.tooltip-flip-up:hover .rate-tooltip {
+.staff-row-with-tooltip.tooltip-flip-up:hover .rate-tooltip,
+.client-detail-row-with-tooltip.tooltip-flip-up:hover .rate-tooltip {
   transform: translateY(0);
 }
 
-.staff-row-with-tooltip.tooltip-flip-up .rate-tooltip::before {
+.staff-row-with-tooltip.tooltip-flip-up .rate-tooltip::before,
+.client-detail-row-with-tooltip.tooltip-flip-up .rate-tooltip::before {
   bottom: auto;
   top: 100%;
   border-bottom: none;
@@ -782,20 +918,24 @@ const tableClass = computed(() => {
 }
 
 /* セクション */
-.staff-row-with-tooltip .tt-section {
+.staff-row-with-tooltip .tt-section,
+.client-detail-row-with-tooltip .tt-section {
   padding: 10px 14px;
   border-bottom: 1px solid #f1f5f9;
 }
 
-.staff-row-with-tooltip .tt-section:last-child {
+.staff-row-with-tooltip .tt-section:last-child,
+.client-detail-row-with-tooltip .tt-section:last-child {
   border-bottom: none;
 }
 
-.staff-row-with-tooltip .tt-section-amount {
+.staff-row-with-tooltip .tt-section-amount,
+.client-detail-row-with-tooltip .tt-section-amount {
   background: #f8fafc;
 }
 
-.staff-row-with-tooltip .tt-section-title {
+.staff-row-with-tooltip .tt-section-title,
+.client-detail-row-with-tooltip .tt-section-title {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -805,7 +945,8 @@ const tableClass = computed(() => {
 }
 
 /* グリッド（label / value 整列） */
-.staff-row-with-tooltip .tt-grid {
+.staff-row-with-tooltip .tt-grid,
+.client-detail-row-with-tooltip .tt-grid {
   display: grid;
   grid-template-columns: auto 1fr;
   column-gap: 10px;
@@ -813,31 +954,36 @@ const tableClass = computed(() => {
   align-items: baseline;
 }
 
-.staff-row-with-tooltip .tt-grid-rates {
+.staff-row-with-tooltip .tt-grid-rates,
+.client-detail-row-with-tooltip .tt-grid-rates {
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px dashed #e5e7eb;
 }
 
-.staff-row-with-tooltip .tt-label {
+.staff-row-with-tooltip .tt-label,
+.client-detail-row-with-tooltip .tt-label {
   color: #64748b;
   font-size: 11px;
   white-space: nowrap;
 }
 
-.staff-row-with-tooltip .tt-value {
+.staff-row-with-tooltip .tt-value,
+.client-detail-row-with-tooltip .tt-value {
   color: #0f172a;
   font-size: 12px;
 }
 
-.staff-row-with-tooltip .tt-sub {
+.staff-row-with-tooltip .tt-sub,
+.client-detail-row-with-tooltip .tt-sub {
   color: #94a3b8;
   font-size: 11px;
   margin-left: 2px;
 }
 
 /* 適用中バッジ */
-.staff-row-with-tooltip .tt-applied-row {
+.staff-row-with-tooltip .tt-applied-row,
+.client-detail-row-with-tooltip .tt-applied-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -846,7 +992,8 @@ const tableClass = computed(() => {
   border-radius: 6px;
 }
 
-.staff-row-with-tooltip .tt-applied-badge {
+.staff-row-with-tooltip .tt-applied-badge,
+.client-detail-row-with-tooltip .tt-applied-badge {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.05em;
@@ -857,18 +1004,21 @@ const tableClass = computed(() => {
   flex-shrink: 0;
 }
 
-.staff-row-with-tooltip .tt-applied-text {
+.staff-row-with-tooltip .tt-applied-text,
+.client-detail-row-with-tooltip .tt-applied-text {
   color: #1e3a8a;
   font-size: 12px;
 }
 
-.staff-row-with-tooltip .tt-applied-text strong {
+.staff-row-with-tooltip .tt-applied-text strong,
+.client-detail-row-with-tooltip .tt-applied-text strong {
   font-size: 13px;
   margin-left: 4px;
 }
 
 /* 計算式 */
-.staff-row-with-tooltip .tt-formula {
+.staff-row-with-tooltip .tt-formula,
+.client-detail-row-with-tooltip .tt-formula {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -878,39 +1028,46 @@ const tableClass = computed(() => {
   margin: 2px 0;
 }
 
-.staff-row-with-tooltip .tt-formula-result {
+.staff-row-with-tooltip .tt-formula-result,
+.client-detail-row-with-tooltip .tt-formula-result {
   margin-top: 4px;
   padding-top: 6px;
   border-top: 1px dashed #cbd5e1;
 }
 
-.staff-row-with-tooltip .tt-arrow {
+.staff-row-with-tooltip .tt-arrow,
+.client-detail-row-with-tooltip .tt-arrow {
   color: #64748b;
   font-size: 11px;
 }
 
-.staff-row-with-tooltip .tt-op {
+.staff-row-with-tooltip .tt-op,
+.client-detail-row-with-tooltip .tt-op {
   color: #94a3b8;
   font-size: 11px;
 }
 
-.staff-row-with-tooltip .tt-mono {
+.staff-row-with-tooltip .tt-mono,
+.client-detail-row-with-tooltip .tt-mono {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
 
 /* 注釈・補足 */
-.staff-row-with-tooltip .tt-note {
+.staff-row-with-tooltip .tt-note,
+.client-detail-row-with-tooltip .tt-note {
   margin-top: 6px;
   font-size: 11px;
   color: #475569;
 }
 
-.staff-row-with-tooltip .tt-note-muted {
+.staff-row-with-tooltip .tt-note-muted,
+.client-detail-row-with-tooltip .tt-note-muted {
   color: #94a3b8;
 }
 
-.staff-row-with-tooltip .tt-defect {
+.staff-row-with-tooltip .tt-defect,
+.client-detail-row-with-tooltip .tt-defect {
   color: #dc2626;
   font-weight: 600;
 }

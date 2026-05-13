@@ -125,9 +125,88 @@ class ClientInvoiceController extends Controller
             'staffInvoiceItems.staffInvoice.details.workRecord.workRate',
         ]);
 
+        // 各 detail にツールチップ用ペイロードを付与
+        $invoiceArray = $clientInvoice->toArray();
+        foreach ($invoiceArray['staff_invoice_items'] as $i => $item) {
+            $details = $clientInvoice->staffInvoiceItems[$i]->staffInvoice->details ?? collect();
+            foreach ($details as $j => $detail) {
+                if (isset($invoiceArray['staff_invoice_items'][$i]['staff_invoice']['details'][$j])) {
+                    $invoiceArray['staff_invoice_items'][$i]['staff_invoice']['details'][$j]['rate_tooltip']
+                        = $this->buildRateTooltip($detail);
+                }
+            }
+        }
+
         return Inertia::render('ClientInvoices/Show', [
-            'invoice' => $clientInvoice->toArray(),
+            'invoice' => $invoiceArray,
         ]);
+    }
+
+    /**
+     * 客先請求書の明細行ツールチップ用ペイロードを生成
+     * 客先請求は社員単価(rate_employee)固定で計算する
+     */
+    private function buildRateTooltip(\App\Models\StaffInvoiceDetail $detail): array
+    {
+        $workRecord = $detail->workRecord;
+        $workRate = $workRecord->workRate;
+        $drawing = $workRecord->drawing;
+
+        $totalQty = (int) (($workRecord->quantity_good ?? 0) + ($workRecord->quantity_ng ?? 0));
+        $weightPerUnit = (float) $drawing->weight_per_unit;
+        $weight = $totalQty * $weightPerUnit;
+        $kgRate = (float) ($workRate->rate_employee ?? 0);
+        $perPieceRaw = $weightPerUnit * $kgRate;
+        $perPieceRounded = (int) round($perPieceRaw);
+        $clientAmount = $totalQty * $perPieceRounded;
+        $rawAmount = $weight * $kgRate;
+        $hours = $workRecord->work_minutes ? round($workRecord->work_minutes / 60, 2) : null;
+
+        return [
+            'time' => [
+                'start' => $workRecord->start_time?->format('Y/n/j H:i'),
+                'end' => $workRecord->end_time?->format('Y/n/j H:i'),
+                'minutes' => $workRecord->work_minutes,
+                'hours' => $hours,
+                'method' => $workRecord->workMethod?->name,
+            ],
+            'rate' => [
+                'staff_type_label' => null,
+                'applied_label' => '社員単価（客先請求は一律）',
+                'applied_value' => round($kgRate, 2),
+                'is_overtime' => false,
+                'overtime_reason' => null,
+                'rate_employee' => (float) $workRate->rate_employee,
+                'rate_contractor' => (float) $workRate->rate_contractor,
+                'rate_overtime' => (float) $workRate->rate_overtime,
+                'work_rate_id' => $workRate->id,
+                'effective_from' => $workRate->effective_from?->format('Y/n/j'),
+                'effective_to' => $workRate->effective_to?->format('Y/n/j'),
+            ],
+            'unit_per_piece' => [
+                'weight_per_unit' => $weightPerUnit,
+                'kg_rate' => $kgRate,
+                'raw' => round($perPieceRaw, 4),
+                'display' => $perPieceRounded,
+            ],
+            'quantity' => [
+                'good' => (int) ($workRecord->quantity_good ?? 0),
+                'ng' => (int) ($workRecord->quantity_ng ?? 0),
+                'total' => $totalQty,
+                'weight_per_unit' => $weightPerUnit,
+                'total_weight' => $weight,
+                'defect_rate' => $totalQty > 0
+                    ? round(($workRecord->quantity_ng ?? 0) / $totalQty * 100, 1)
+                    : 0,
+            ],
+            'amount' => [
+                'weight' => $weight,
+                'unit_price' => $kgRate,
+                'raw' => round($rawAmount, 4),
+                'display' => $clientAmount,
+                'hourly' => $hours ? (int) round($clientAmount / $hours) : null,
+            ],
+        ];
     }
 
     /**
@@ -277,10 +356,11 @@ class ClientInvoiceController extends Controller
                     
                     $quantity = ($workRecord->quantity_good ?? 0) + ($workRecord->quantity_ng ?? 0);
                     $weightPerUnit = $drawing->weight_per_unit ?? 0;
-                    $totalWeight = $quantity * $weightPerUnit;
                     $unitPrice = $workRate->rate_employee ?? 0;
-                    $amount = $totalWeight * $unitPrice;
-                    
+                    // 新方式: 数量 × round(1個重量 × kg単価)
+                    $perPiecePrice = round($weightPerUnit * $unitPrice);
+                    $amount = $quantity * $perPiecePrice;
+
                     $sum += $amount;
                 }
                 
@@ -399,10 +479,11 @@ class ClientInvoiceController extends Controller
                 
                 // 単価（rate_employeeを使用）
                 $unitPrice = $workRate->rate_employee ?? 0;
-                
-                // 金額（総重量 × 単価）
-                $amount = $totalWeight * $unitPrice;
-                
+
+                // 新方式: 数量 × round(1個重量 × kg単価)
+                $perPiecePrice = round($weightPerUnit * $unitPrice);
+                $amount = $quantity * $perPiecePrice;
+
                 $staffGroups[$staffName][] = [
                     'date' => $date,
                     'client' => $clientName,

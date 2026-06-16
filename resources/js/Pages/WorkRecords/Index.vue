@@ -55,11 +55,30 @@ const onDrawingNumberInput = (event) => {
 };
 
 const form = ref({
-    staff_id: null,
-    drawing_id: null,
-    work_method_id: null,
-    date_from: null,
-    date_to: null,
+    staff_id: props.filters?.staff_id ?? null,
+    drawing_id: props.filters?.drawing_id ?? null,
+    work_method_id: props.filters?.work_method_id ?? null,
+    date_from: props.filters?.date_from ?? null,
+    date_to: props.filters?.date_to ?? null,
+});
+
+// 復元された図番IDから図番名（入力欄表示用）を初期化
+if (form.value.drawing_id) {
+    const current = props.drawings.find(d => d.id == form.value.drawing_id);
+    if (current) {
+        drawingNumberFilter.value = current.drawing_number;
+    }
+}
+
+// 適用中の検索条件（null/空を除外）。編集リンクへ引き継ぐ
+const filterQuery = computed(() => {
+    const q = {};
+    Object.entries(form.value).forEach(([key, value]) => {
+        if (value !== null && value !== '') {
+            q[key] = value;
+        }
+    });
+    return q;
 });
 
 const applyFilters = () => {
@@ -262,7 +281,7 @@ const formatNumber = (num) => {
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <Link
-                                        :href="route('work-records.edit', record.id)"
+                                        :href="route('work-records.edit', { work_record: record.id, ...filterQuery })"
                                         class="text-blue-600 hover:text-blue-900"
                                     >
                                         編集

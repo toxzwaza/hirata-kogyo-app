@@ -8,6 +8,9 @@ const props = defineProps({
     workMethods: Array,
 });
 
+// 一覧の検索条件を保持して戻る（編集URLのクエリ文字列を引き継ぐ）
+const backUrl = route('work-rates.index') + window.location.search;
+
 // type="date" 用に YYYY-MM-DD 形式に正規化（登録済みの日付をデフォルト表示するため）
 const toDateInputValue = (val) => {
     if (val == null) return '';
@@ -212,7 +215,7 @@ const deleteRate = () => {
                             </button>
                             <div class="flex gap-4">
                                 <a
-                                    :href="route('work-rates.index')"
+                                    :href="backUrl"
                                     class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
                                 >
                                     キャンセル

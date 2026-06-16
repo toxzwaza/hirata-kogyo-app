@@ -10,6 +10,9 @@ const props = defineProps({
     defectTypes: Array,
 });
 
+// 一覧の検索条件を保持して戻る（登録URLのクエリ文字列を引き継ぐ）
+const backUrl = route('work-records.index') + window.location.search;
+
 // 得意先リスト（重複なし）
 const clients = computed(() => {
     const clientMap = new Map();
@@ -291,7 +294,7 @@ const submit = () => {
             } else {
                 // 続けて登録しない場合は一覧ページにリダイレクト
                 setTimeout(() => {
-                    window.location.href = route('work-records.index');
+                    window.location.href = backUrl;
                 }, 100);
             }
         },
@@ -639,7 +642,7 @@ const submit = () => {
                         <!-- ボタン -->
                         <div class="mt-6 flex justify-end gap-4">
                             <a
-                                :href="route('work-records.index')"
+                                :href="backUrl"
                                 class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
                             >
                                 キャンセル

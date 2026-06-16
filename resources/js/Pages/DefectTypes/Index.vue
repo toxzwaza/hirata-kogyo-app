@@ -1,14 +1,26 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, watch, computed } from 'vue';
 
-defineProps({
+const props = defineProps({
     defectTypes: Object,
     filters: Object,
 });
 
-const search = ref('');
+const search = ref(props.filters?.search || '');
+
+// フィルターが変更されたときに再初期化
+watch(() => props.filters, (newFilters) => {
+    search.value = newFilters?.search || '';
+}, { deep: true });
+
+// 適用中の検索条件（null/空を除外）。編集リンクへ引き継ぐ
+const filterQuery = computed(() => {
+    const q = {};
+    if (search.value !== '' && search.value !== null) q.search = search.value;
+    return q;
+});
 
 const applySearch = () => {
     router.get(route('defect-types.index'), { search: search.value }, {
@@ -86,7 +98,7 @@ const clearSearch = () => {
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <Link
-                                        :href="route('defect-types.edit', type.id)"
+                                        :href="route('defect-types.edit', { defect_type: type.id, ...filterQuery })"
                                         class="text-blue-600 hover:text-blue-900"
                                     >
                                         編集

@@ -1,17 +1,35 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, watch, computed } from 'vue';
 
-defineProps({
+const props = defineProps({
     staffList: Object,
     staffTypes: Array,
     filters: Object,
 });
 
-const search = ref('');
-const staffTypeId = ref(null);
-const activeFlag = ref(null);
+const search = ref(props.filters?.search || '');
+const staffTypeId = ref(props.filters?.staff_type_id || null);
+const activeFlag = ref(props.filters?.active_flag !== undefined ? props.filters.active_flag : null);
+
+// フィルターが変更されたときに再初期化
+watch(() => props.filters, (newFilters) => {
+    if (newFilters) {
+        search.value = newFilters.search || '';
+        staffTypeId.value = newFilters.staff_type_id || null;
+        activeFlag.value = newFilters.active_flag !== undefined ? newFilters.active_flag : null;
+    }
+}, { deep: true });
+
+// 適用中の検索条件（null/空を除外）。編集リンクへ引き継ぐ
+const filterQuery = computed(() => {
+    const q = {};
+    if (search.value !== '' && search.value !== null) q.search = search.value;
+    if (staffTypeId.value !== null) q.staff_type_id = staffTypeId.value;
+    if (activeFlag.value !== null) q.active_flag = activeFlag.value;
+    return q;
+});
 
 const applyFilters = () => {
     router.get(route('staff.index'), {
@@ -184,7 +202,7 @@ const clearFilters = () => {
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <Link
-                                            :href="route('staff.edit', staff.id)"
+                                            :href="route('staff.edit', { staff: staff.id, ...filterQuery })"
                                             class="text-blue-600 hover:text-blue-900"
                                         >
                                             編集

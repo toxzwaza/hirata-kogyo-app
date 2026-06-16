@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 
 const props = defineProps({
     drawings: Object,
@@ -12,6 +12,15 @@ const props = defineProps({
 const search = ref(props.filters?.search || '');
 const clientId = ref(props.filters?.client_id || null);
 const activeFlag = ref(props.filters?.active_flag !== undefined ? props.filters.active_flag : null);
+
+// 適用中の検索条件（null/空を除外）。編集リンクへ引き継ぐ
+const filterQuery = computed(() => {
+    const q = {};
+    if (search.value !== '' && search.value !== null) q.search = search.value;
+    if (clientId.value !== null) q.client_id = clientId.value;
+    if (activeFlag.value !== null) q.active_flag = activeFlag.value;
+    return q;
+});
 
 // フィルターが変更されたときに再初期化
 watch(() => props.filters, (newFilters) => {
@@ -162,7 +171,7 @@ const clearFilters = () => {
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <Link
-                                        :href="route('drawings.edit', drawing.id)"
+                                        :href="route('drawings.edit', { drawing: drawing.id, ...filterQuery })"
                                         class="text-blue-600 hover:text-blue-900"
                                     >
                                         編集

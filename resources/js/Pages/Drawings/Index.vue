@@ -48,6 +48,10 @@ const clearFilters = () => {
     activeFlag.value = null;
     router.get(route('drawings.index'));
 };
+
+const formatNumber = (num) => {
+    return new Intl.NumberFormat('ja-JP').format(num);
+};
 </script>
 
 <template>
@@ -140,6 +144,12 @@ const clearFilters = () => {
                                     重量（kg/個）
                                 </th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    客先kg単価
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    客先個単価
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     ステータス
                                 </th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -160,6 +170,22 @@ const clearFilters = () => {
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {{ drawing.weight_per_unit }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <template v-if="drawing.effective_rates && drawing.effective_rates.length">
+                                        <div v-for="rate in drawing.effective_rates" :key="'kg-' + rate.work_method_name">
+                                            <span v-if="drawing.effective_rates.length > 1" class="text-xs text-gray-500">{{ rate.work_method_name }}: </span>¥{{ formatNumber(rate.kg_rate) }}
+                                        </div>
+                                    </template>
+                                    <span v-else class="text-gray-400">—</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <template v-if="drawing.effective_rates && drawing.effective_rates.length">
+                                        <div v-for="rate in drawing.effective_rates" :key="'unit-' + rate.work_method_name">
+                                            <span v-if="drawing.effective_rates.length > 1" class="text-xs text-gray-500">{{ rate.work_method_name }}: </span>¥{{ formatNumber(rate.unit_price) }}
+                                        </div>
+                                    </template>
+                                    <span v-else class="text-gray-400">—</span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span

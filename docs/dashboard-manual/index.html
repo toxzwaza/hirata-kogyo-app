@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作業実績ダッシュボード ご提案・ご説明資料｜平田工業 作業実績・請求管理システム</title>
+<style>
+  :root{
+    --ink:#1f2937; --sub:#6b7280; --line:#e5e7eb; --bg:#f7f7f5;
+    --accent:#16a34a; --accent2:#7c3aed; --warn:#dc2626; --brand:#eab308;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif;
+    line-height:1.85; font-size:15px;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:0 20px 80px;}
+  /* カバー */
+  .cover{
+    background:linear-gradient(120deg,#fef9c3 0%,#fde68a 100%);
+    border-bottom:5px solid var(--brand);
+    padding:56px 20px 48px;
+  }
+  .cover-inner{max-width:960px;margin:0 auto;}
+  .cover .eyebrow{font-size:13px;color:#92722a;font-weight:700;letter-spacing:.08em;}
+  .cover h1{font-size:30px;margin:8px 0 6px;line-height:1.4;}
+  .cover .lead{font-size:16px;color:#4b5563;margin:0;}
+  .cover .meta{margin-top:22px;font-size:13px;color:#6b5a1f;}
+  /* セクション */
+  section{
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:30px 32px;margin-top:26px;box-shadow:0 1px 3px rgba(0,0,0,.04);
+  }
+  h2{font-size:21px;margin:0 0 4px;padding-left:14px;border-left:5px solid var(--brand);}
+  h2 .no{color:var(--brand);margin-right:8px;}
+  h3{font-size:16px;margin:26px 0 8px;color:#374151;}
+  p{margin:10px 0;}
+  .muted{color:var(--sub);font-size:13.5px;}
+  figure{margin:18px 0 6px;}
+  figure img{width:100%;border:1px solid var(--line);border-radius:10px;display:block;
+    box-shadow:0 4px 16px rgba(0,0,0,.08);}
+  figcaption{font-size:12.5px;color:var(--sub);text-align:center;margin-top:8px;}
+  /* 効能ボックス */
+  .benefits{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0 4px;}
+  .benefit{background:#f9fafb;border:1px solid var(--line);border-radius:10px;padding:16px;}
+  .benefit .icon{font-size:22px;}
+  .benefit b{display:block;margin:6px 0 4px;font-size:14.5px;}
+  .benefit span{font-size:13px;color:var(--sub);}
+  /* コールアウト */
+  .callout{border-left:4px solid var(--accent);background:#f0fdf4;border-radius:8px;
+    padding:14px 16px;margin:16px 0;font-size:14px;}
+  .callout.warn{border-color:var(--warn);background:#fef2f2;}
+  .callout b{color:#166534;}
+  .callout.warn b{color:#991b1b;}
+  /* テーブル */
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px;}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top;}
+  th{background:#f3f4f6;font-weight:700;white-space:nowrap;}
+  td code{background:#f3f4f6;padding:1px 6px;border-radius:4px;font-size:12.5px;}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;}
+  .tag.red{background:#fee2e2;color:#b91c1c;}
+  .tag.green{background:#dcfce7;color:#15803d;}
+  ol.steps{margin:12px 0;padding-left:0;counter-reset:s;list-style:none;}
+  ol.steps li{position:relative;padding:8px 0 8px 40px;border-bottom:1px dashed var(--line);}
+  ol.steps li:before{counter-increment:s;content:counter(s);position:absolute;left:0;top:8px;
+    width:26px;height:26px;background:var(--brand);color:#fff;border-radius:50%;
+    text-align:center;line-height:26px;font-weight:700;font-size:13px;}
+  .footer{margin-top:30px;text-align:center;color:var(--sub);font-size:12.5px;}
+  @media(max-width:680px){.benefits{grid-template-columns:1fr;} .cover h1{font-size:24px;}}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <div class="eyebrow">平田工業 作業実績・請求管理システム</div>
+    <h1>作業実績ダッシュボード<br>ご提案・ご説明資料</h1>
+    <p class="lead">日々の作業実績を「経営判断に使える情報」へ。<br>採算の見える化と、単価交渉の根拠づくりを支援します。</p>
+    <div class="meta">　／　2026年6月</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- 0. はじめに -->
+  <section>
+    <h2><span class="no">0</span>このダッシュボードでできること</h2>
+    <p>
+      これまで蓄積してきた「誰が・どの図番を・どれだけの時間で・何個仕上げたか」という作業実績は、
+      請求業務だけでなく<strong>経営判断のための貴重なデータ</strong>です。
+      本ダッシュボードは、その実績を自動で集計・可視化し、
+      <strong>「割に合っていない仕事（図番）」を一目で発見</strong>できるようにしました。
+    </p>
+    <div class="benefits">
+      <div class="benefit">
+        <div class="icon">📊</div>
+        <b>採算の見える化</b>
+        <span>図番ごとの「1時間あたりいくら稼げているか（実効時給）」を自動算出。勘や経験に頼らず数字で把握できます。</span>
+      </div>
+      <div class="benefit">
+        <div class="icon">🤝</div>
+        <b>単価交渉の根拠づくり</b>
+        <span>「この図番は手間の割に単価が低い」を金額で提示。値上げ交渉の客観的な裏付け資料になります。</span>
+      </div>
+      <div class="benefit">
+        <div class="icon">🔎</div>
+        <b>現場実態の深掘り</b>
+        <span>気になる図番をクリックすれば、誰がどれだけ時間をかけたかまで1画面で確認できます。</span>
+      </div>
+    </div>
+    <p class="muted">※ 本資料の画面・数値はサンプルデータによる表示例です。実際の運用では貴社の実績データが反映されます。</p>
+  </section>
+
+  <!-- 1. 画面全体 -->
+  <section>
+    <h2><span class="no">1</span>画面全体の構成</h2>
+    <figure>
+      <img src="images/01-overview.png" alt="ダッシュボード全体">
+      <figcaption>ダッシュボード上部：集計期間の切替・目標時給の設定・サマリー指標・採算分析表</figcaption>
+    </figure>
+    <p>ダッシュボードは上から順に、次の要素で構成されています。</p>
+    <h3>① 集計期間の切替</h3>
+    <p>
+      画面左上で集計する期間を選べます。月を指定するほか、<strong>「今月／先月／直近3ヶ月／直近6ヶ月」</strong>のワンタッチ切替に対応。
+      採算の傾向を見るときは、件数が安定する<strong>直近3〜6ヶ月での確認をおすすめ</strong>します。
+    </p>
+    <h3>② 目標時給の設定</h3>
+    <p>
+      右上の「目標時給」は、<strong>1時間あたりこれだけは稼ぎたい、という基準額</strong>です（例：¥3,000/h）。
+      この値を入力すると、後述の「必要単価」「値上げ要求額」がその場で再計算されます。一度設定すれば次回も保持されます。
+    </p>
+    <h3>③ サマリー指標（3枚のカード）</h3>
+    <table>
+      <tr><th>カード</th><th>意味</th></tr>
+      <tr><td>客先請求予定額</td><td>選択期間に対応する、委託元への請求予定額（下書き＋確定）の合計。</td></tr>
+      <tr><td>スタッフ支払予定額</td><td>選択期間に対応する、スタッフへの支払予定額（下書き＋確定）の合計。</td></tr>
+      <tr><td>目標時給未達の図番数</td><td>実効時給が目標時給に届いていない図番の件数。<strong>改善余地のボリューム</strong>が分かります。</td></tr>
+    </table>
+  </section>
+
+  <!-- 2. 単価交渉支援 -->
+  <section>
+    <h2><span class="no">2</span>単価交渉支援（採算分析）— 中核機能</h2>
+    <p>
+      本ダッシュボードの中心となる表です。<strong>図番ごとに「採算が取れているか」を一覧化</strong>し、
+      実効時給の低い（＝割に合わない）図番を上から順に表示します。
+      <span class="tag red">赤色の行</span>は目標時給に届いていない図番で、<strong>単価交渉の最優先候補</strong>です。
+    </p>
+    <figure>
+      <img src="images/02-negotiation.png" alt="単価交渉支援の採算分析表">
+      <figcaption>採算分析表：実効時給の低い図番を上位に表示。各列をクリックすると並べ替えも可能</figcaption>
+    </figure>
+    <h3>各列の意味</h3>
+    <table>
+      <tr><th>列</th><th>意味</th></tr>
+      <tr><td>図番</td><td>図番・品名・客先。行をクリックすると作業実績の明細が開きます（第3章）。</td></tr>
+      <tr><td>件数</td><td>期間内の作業実績の件数。</td></tr>
+      <tr><td>生産性（kg/h）</td><td>1時間あたり何kg仕上げられたか。<strong>作業スピード</strong>を表します。</td></tr>
+      <tr><td>実効時給</td><td>その図番が<strong>1時間あたり実際にいくらの売上を生んでいるか</strong>。採算の核心です。</td></tr>
+      <tr><td>現行単価</td><td>いま適用されている単価。<strong>kg単価</strong>と、参考に<strong>個単価</strong>（1個あたり）を併記。</td></tr>
+      <tr><td>必要単価</td><td>設定した目標時給を達成するために必要なkg単価。</td></tr>
+      <tr><td>値上げ要求額</td><td>「必要単価 − 現行単価」。<span class="tag red">＋（赤）</span>＝値上げ余地、<span class="tag green">−（緑）</span>＝すでに目標達成。</td></tr>
+    </table>
+
+    <div class="callout">
+      <b>交渉の使い方（イメージ）</b><br>
+      たとえば「生産性20kg/h・現行単価100円/kg」の図番は、実効時給が約2,000円/h。
+      目標3,000円/hにするには単価を150円/kgへ——という<strong>「あと＋50円/kgの値上げが必要」という具体的な根拠</strong>を、
+      実績データから自動的に提示します。感覚ではなく数字で交渉に臨めます。
+    </div>
+  </section>
+
+  <!-- 3. 明細モーダル -->
+  <section>
+    <h2><span class="no">3</span>作業実績の深掘り（明細ビュー）</h2>
+    <p>
+      採算分析表の<strong>行をクリック</strong>すると、その図番の作業実績明細がポップアップで開きます。
+      「なぜこの図番は採算が悪いのか」を、<strong>個々の作業記録までさかのぼって確認</strong>できます。
+    </p>
+    <figure>
+      <img src="images/04-modal.png" alt="作業実績明細モーダル">
+      <figcaption>明細ビュー：上部に要約指標、下部に「誰が・いつ・何分で・何個」を一覧表示</figcaption>
+    </figure>
+    <h3>上部の要約指標</h3>
+    <p>実効時給・生産性・<strong>1個あたりの平均作業時間（分/個）</strong>・総作業時間・総生産数/重量をまとめて表示します。</p>
+    <h3>下部の作業実績一覧</h3>
+    <p>
+      スタッフ・日付・時間帯・作業時間・<strong>分/個</strong>・良品/不良数・重量・想定金額を一覧化。
+      各行をクリックすると、その作業実績の<strong>編集画面へ直接移動</strong>できます。
+    </p>
+    <div class="callout warn">
+      <b>入力ミス・異常値の発見にも有効</b><br>
+      「分/個」を併記しているため、たとえば通常1分/個の作業に極端に長い時間が記録されているといった
+      <strong>入力ミスや異常な実績をその場で発見</strong>し、ワンクリックで修正画面へ進めます。
+      データ品質の維持にも役立ちます。
+    </div>
+  </section>
+
+  <!-- 4. グラフ -->
+  <section>
+    <h2><span class="no">4</span>スタッフ別生産性 ・ 月次推移</h2>
+    <figure>
+      <img src="images/03-charts.png" alt="スタッフ別生産性と月次推移のグラフ">
+      <figcaption>左：スタッフ別の生産性（kg/h）　右：直近6ヶ月の想定売上・生産重量の推移</figcaption>
+    </figure>
+    <h3>スタッフ別生産性</h3>
+    <p>
+      期間内のスタッフごとの生産性（kg/h）をグラフと表で表示。
+      生産重量・実効時給も併記し、<strong>誰がどれだけ生産しているか</strong>を客観的に把握できます。
+    </p>
+    <h3>月次推移（直近6ヶ月）</h3>
+    <p>
+      想定売上（円）と生産重量（kg）の推移を折れ線で表示。
+      <strong>繁忙・閑散の波や、売上トレンド</strong>を一目で確認できます。
+    </p>
+    <p class="muted">画面最下部には、各管理画面へ素早く移動できる「クイックリンク」も用意しています。</p>
+  </section>
+
+  <!-- 5. 計算方法 -->
+  <section>
+    <h2><span class="no">5</span>各指標の計算方法（ご参考）</h2>
+    <p>表示される数値は、すべて作業実績データから次の計算式で自動算出しています。透明性のため計算根拠を明記します。</p>
+    <table>
+      <tr><th>指標</th><th>計算式</th><th>意味</th></tr>
+      <tr><td>生産性（kg/h）</td><td><code>総生産重量 ÷ 総作業時間(h)</code></td><td>1時間あたりの仕上げ重量＝作業スピード</td></tr>
+      <tr><td>実効時給（円/h）</td><td><code>想定売上 ÷ 総作業時間(h)</code></td><td>1時間あたりに生む売上＝採算の核心</td></tr>
+      <tr><td>想定売上（円）</td><td><code>Σ(数量 × round(1個重量 × kg単価))</code></td><td>請求書と同じ計算方式による売上の想定値</td></tr>
+      <tr><td>必要単価（円/kg）</td><td><code>目標時給 ÷ 生産性(kg/h)</code></td><td>目標時給を達成するのに必要な単価</td></tr>
+      <tr><td>値上げ要求額（円/kg）</td><td><code>必要単価 − 現行単価</code></td><td>交渉で詰めるべき単価の差</td></tr>
+      <tr><td>平均作業時間/個（分）</td><td><code>総作業時間(分) ÷ 総生産数</code></td><td>1個仕上げるのにかかる平均時間</td></tr>
+    </table>
+    <p class="muted">
+      ※「kg単価」は図番に設定された単価（正社員→個人事業主→残業の順に採用する代表単価）を用います。<br>
+      ※ ここでの「想定売上」は実績からの参考値で、確定済みの請求金額とは独立しています（過去の請求額を書き換えることはありません）。<br>
+      ※ 件数が少ない期間は数値が振れやすいため、交渉判断は直近3〜6ヶ月での集計を推奨します。
+    </p>
+  </section>
+
+  <!-- 6. まとめ -->
+  <section>
+    <h2><span class="no">6</span>導入によるメリット（まとめ）</h2>
+    <table>
+      <tr><th>これまで</th><th>本ダッシュボード導入後</th></tr>
+      <tr><td>採算は感覚・経験頼り。どの図番が損益分岐かは見えづらい。</td><td>図番ごとの実効時給を自動算出し、<strong>赤字図番を即発見</strong>。</td></tr>
+      <tr><td>単価交渉の根拠が乏しく、値上げを切り出しにくい。</td><td>「あと＋〇〇円/kg必要」と<strong>数字で交渉</strong>できる。</td></tr>
+      <tr><td>現場の作業実態は集計しないと分からない。</td><td>気になる図番を<strong>1クリックで深掘り</strong>、編集まで即移動。</td></tr>
+      <tr><td>入力ミスは請求段階まで気づきにくい。</td><td>異常値を<strong>ダッシュボード上で早期発見</strong>。</td></tr>
+    </table>
+    <p>
+      蓄積された作業実績を「攻めの経営判断」に活かす——本ダッシュボードはそのための土台です。
+      ご要望に応じて、表示指標の追加や、異常値の自動警告などの拡張も可能です。
+    </p>
+  </section>
+
+  <div class="footer">
+    平田工業 作業実績・請求管理システム ／ 作業実績ダッシュボード ご説明資料<br>
+    　2026年6月
+  </div>
+
+</div>
+</body>
+</html>

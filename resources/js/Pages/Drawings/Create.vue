@@ -7,6 +7,9 @@ const props = defineProps({
     clients: Array,
 });
 
+// 一覧の検索条件を保持して戻る（登録URLのクエリ文字列を引き継ぐ）
+const backUrl = route('drawings.index') + window.location.search;
+
 const form = useForm({
     client_id: '',
     product_name: '',
@@ -148,7 +151,7 @@ const submit = () => {
 
                         <div class="mt-6 flex justify-end gap-4">
                             <a
-                                :href="route('drawings.index')"
+                                :href="backUrl"
                                 class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
                             >
                                 キャンセル

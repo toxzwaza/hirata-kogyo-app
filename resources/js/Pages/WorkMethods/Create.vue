@@ -2,6 +2,9 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 
+// 一覧の検索条件を保持して戻る（登録URLのクエリ文字列を引き継ぐ）
+const backUrl = route('work-methods.index') + window.location.search;
+
 const form = useForm({
     name: '',
 });
@@ -38,7 +41,7 @@ const submit = () => {
 
                         <div class="mt-6 flex justify-end gap-4">
                             <a
-                                :href="route('work-methods.index')"
+                                :href="backUrl"
                                 class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
                             >
                                 キャンセル

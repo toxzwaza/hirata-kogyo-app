@@ -6,6 +6,9 @@ const props = defineProps({
     workMethod: Object,
 });
 
+// 一覧の検索条件を保持して戻る（編集URLのクエリ文字列を引き継ぐ）
+const backUrl = route('work-methods.index') + window.location.search;
+
 const form = useForm({
     name: props.workMethod.name,
 });
@@ -60,7 +63,7 @@ const deleteMethod = () => {
                             </button>
                             <div class="flex gap-4">
                                 <a
-                                    :href="route('work-methods.index')"
+                                    :href="backUrl"
                                     class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
                                 >
                                     キャンセル

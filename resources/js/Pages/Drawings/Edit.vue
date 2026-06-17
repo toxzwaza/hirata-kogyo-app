@@ -1,12 +1,25 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 const props = defineProps({
     drawing: Object,
     clients: Array,
+    workRates: { type: Array, default: () => [] },
 });
+
+const formatNumber = (num) => {
+    if (num === null || num === undefined) return '—';
+    return '¥' + new Intl.NumberFormat('ja-JP').format(num);
+};
+
+const formatDate = (date) => {
+    return date ? date : '';
+};
+
+// 一覧の検索条件を保持して戻る（編集URLのクエリ文字列を引き継ぐ）
+const backUrl = route('drawings.index') + window.location.search;
 
 const form = useForm({
     client_id: props.drawing.client_id,
@@ -62,7 +75,7 @@ const deleteDrawing = () => {
         </template>
 
         <div class="py-12">
-            <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
+            <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white shadow-sm rounded-lg p-6">
                     <!-- 成功メッセージ -->
                     <div v-if="$page.props.flash?.success" class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
@@ -180,7 +193,7 @@ const deleteDrawing = () => {
                             </button>
                             <div class="flex gap-4">
                                 <a
-                                    :href="route('drawings.index')"
+                                    :href="backUrl"
                                     class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
                                 >
                                     キャンセル
@@ -195,6 +208,86 @@ const deleteDrawing = () => {
                             </div>
                         </div>
                     </form>
+                </div>
+
+                <!-- 作業単価（閲覧専用。編集は作業単価マスタで行う） -->
+                <div class="bg-white shadow-sm rounded-lg p-6 mt-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-medium text-gray-800">作業単価（現行）</h3>
+                        <div class="flex gap-2">
+                            <Link
+                                :href="route('work-rates.create', { drawing_id: drawing.id })"
+                                class="bg-blue-500 hover:bg-blue-700 text-white text-sm font-bold py-1.5 px-3 rounded"
+                            >
+                                この図番の単価を新規登録
+                            </Link>
+                            <Link
+                                :href="route('work-rates.index', { drawing_id: drawing.id })"
+                                class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-1.5 px-3 rounded"
+                            >
+                                全単価履歴を一覧で見る
+                            </Link>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-gray-500 mb-3">
+                        個単価 = 1個あたり重量({{ drawing.weight_per_unit }}kg) × 客先kg単価（円単位で四捨五入）。単価の編集は作業単価マスタで行います。
+                    </p>
+
+                    <div v-if="workRates.length" class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">作業方法</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">客先単価<br>(円/kg)</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">客先個単価<br>(円/個)</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">スタッフ単価<br>(円/kg)</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">スタッフ残業<br>(円/kg)</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">適用期間</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状態</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr v-for="rate in workRates" :key="rate.work_rate_id">
+                                    <td class="px-4 py-2 whitespace-nowrap text-gray-900">{{ rate.work_method_name }}</td>
+                                    <td class="px-4 py-2 whitespace-nowrap text-gray-900">{{ formatNumber(rate.rate_employee) }}</td>
+                                    <td class="px-4 py-2 whitespace-nowrap text-gray-900">{{ formatNumber(rate.unit_price_employee) }}</td>
+                                    <td class="px-4 py-2 whitespace-nowrap text-gray-900">{{ formatNumber(rate.rate_contractor) }}</td>
+                                    <td class="px-4 py-2 whitespace-nowrap text-gray-900">{{ formatNumber(rate.rate_overtime) }}</td>
+                                    <td class="px-4 py-2 whitespace-nowrap text-gray-700">
+                                        {{ formatDate(rate.effective_from) }} ～ {{ formatDate(rate.effective_to) }}
+                                    </td>
+                                    <td class="px-4 py-2 whitespace-nowrap">
+                                        <span
+                                            :class="rate.active_flg !== false ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'"
+                                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                                        >
+                                            {{ rate.active_flg !== false ? '有効' : '無効' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-2 whitespace-nowrap">
+                                        <Link
+                                            :href="route('work-rates.edit', { work_rate: rate.work_rate_id })"
+                                            class="text-blue-600 hover:text-blue-900 font-medium"
+                                        >
+                                            マスタで編集
+                                        </Link>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div v-else class="text-sm text-gray-500 py-4">
+                        この図番には現行の作業単価が設定されていません。
+                        <Link
+                            :href="route('work-rates.create', { drawing_id: drawing.id })"
+                            class="text-blue-600 hover:text-blue-900 font-medium ml-1"
+                        >
+                            新規登録する
+                        </Link>
+                    </div>
                 </div>
             </div>
         </div>

@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 
 const props = defineProps({
     drawings: Object,
@@ -12,6 +12,15 @@ const props = defineProps({
 const search = ref(props.filters?.search || '');
 const clientId = ref(props.filters?.client_id || null);
 const activeFlag = ref(props.filters?.active_flag !== undefined ? props.filters.active_flag : null);
+
+// 適用中の検索条件（null/空を除外）。編集リンクへ引き継ぐ
+const filterQuery = computed(() => {
+    const q = {};
+    if (search.value !== '' && search.value !== null) q.search = search.value;
+    if (clientId.value !== null) q.client_id = clientId.value;
+    if (activeFlag.value !== null) q.active_flag = activeFlag.value;
+    return q;
+});
 
 // フィルターが変更されたときに再初期化
 watch(() => props.filters, (newFilters) => {
@@ -38,6 +47,10 @@ const clearFilters = () => {
     clientId.value = null;
     activeFlag.value = null;
     router.get(route('drawings.index'));
+};
+
+const formatNumber = (num) => {
+    return new Intl.NumberFormat('ja-JP').format(num);
 };
 </script>
 
@@ -131,6 +144,12 @@ const clearFilters = () => {
                                     重量（kg/個）
                                 </th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    客先kg単価
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    客先個単価
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     ステータス
                                 </th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -152,6 +171,22 @@ const clearFilters = () => {
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {{ drawing.weight_per_unit }}
                                 </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <template v-if="drawing.effective_rates && drawing.effective_rates.length">
+                                        <div v-for="rate in drawing.effective_rates" :key="'kg-' + rate.work_method_name">
+                                            <span v-if="drawing.effective_rates.length > 1" class="text-xs text-gray-500">{{ rate.work_method_name }}: </span>¥{{ formatNumber(rate.kg_rate) }}
+                                        </div>
+                                    </template>
+                                    <span v-else class="text-gray-400">—</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <template v-if="drawing.effective_rates && drawing.effective_rates.length">
+                                        <div v-for="rate in drawing.effective_rates" :key="'unit-' + rate.work_method_name">
+                                            <span v-if="drawing.effective_rates.length > 1" class="text-xs text-gray-500">{{ rate.work_method_name }}: </span>¥{{ formatNumber(rate.unit_price) }}
+                                        </div>
+                                    </template>
+                                    <span v-else class="text-gray-400">—</span>
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span
                                         :class="drawing.active_flag ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
@@ -162,7 +197,7 @@ const clearFilters = () => {
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <Link
-                                        :href="route('drawings.edit', drawing.id)"
+                                        :href="route('drawings.edit', { drawing: drawing.id, ...filterQuery })"
                                         class="text-blue-600 hover:text-blue-900"
                                     >
                                         編集

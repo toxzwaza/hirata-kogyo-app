@@ -11,6 +11,9 @@ const props = defineProps({
     defectTypes: Array,
 });
 
+// 一覧の検索条件を保持して戻る（編集URLのクエリ文字列を引き継ぐ）
+const backUrl = route('work-records.index') + window.location.search;
+
 // 得意先リスト（重複なし）
 const clients = computed(() => {
     const clientMap = new Map();
@@ -566,7 +569,7 @@ const deleteRecord = () => {
                             </button>
                             <div class="flex gap-4">
                                 <a
-                                    :href="route('work-records.index')"
+                                    :href="backUrl"
                                     class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
                                 >
                                     キャンセル

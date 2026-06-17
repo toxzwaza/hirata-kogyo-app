@@ -9,6 +9,9 @@ const props = defineProps({
     mobileLoginUrl: { type: String, default: null },
 });
 
+// 一覧の検索条件を保持して戻る（編集URLのクエリ文字列を引き継ぐ）
+const backUrl = route('staff.index') + window.location.search;
+
 const copyMobileLoginUrl = async () => {
     if (!props.mobileLoginUrl) return;
     try {
@@ -365,7 +368,7 @@ const deleteStaff = () => {
                             </button>
                             <div class="flex gap-4">
                                 <a
-                                    :href="route('staff.index')"
+                                    :href="backUrl"
                                     class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
                                 >
                                     キャンセル

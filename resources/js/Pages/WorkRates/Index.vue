@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 
 const props = defineProps({
     workRates: Object,
@@ -13,6 +13,15 @@ const props = defineProps({
 const search = ref(props.filters?.search || '');
 const drawingId = ref(props.filters?.drawing_id || null);
 const workMethodId = ref(props.filters?.work_method_id || null);
+
+// 適用中の検索条件（null/空を除外）。編集リンクへ引き継ぐ
+const filterQuery = computed(() => {
+    const q = {};
+    if (search.value !== '' && search.value !== null) q.search = search.value;
+    if (drawingId.value !== null) q.drawing_id = drawingId.value;
+    if (workMethodId.value !== null) q.work_method_id = workMethodId.value;
+    return q;
+});
 
 // 再紐づけモーダル
 const showRelinkModal = ref(false);
@@ -259,7 +268,7 @@ const applicationStatusText = (rate) => {
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <Link
-                                        :href="route('work-rates.edit', rate.id)"
+                                        :href="route('work-rates.edit', { work_rate: rate.id, ...filterQuery })"
                                         class="text-blue-600 hover:text-blue-900"
                                     >
                                         編集

@@ -9,6 +9,7 @@ import { computed, ref } from 'vue';
 
 const props = defineProps({
     summary: { type: Object, default: () => ({}) },
+    manualWorkRecordCount: { type: Number, default: 0 },
     rateNegotiation: { type: Array, default: () => [] },
     staffProductivity: { type: Array, default: () => [] },
     monthlyTrend: { type: Array, default: () => [] },
@@ -203,6 +204,30 @@ const trendChart = computed(() => ({
                         :sub="`目標 ${yen(targetHourly)}/h 未満`"
                         accent="amber"
                     />
+
+                    <!-- 手動登録件数（クリックで紐づけ画面へ） -->
+                    <Link
+                        :href="route('work-records.manual.index')"
+                        class="block bg-white overflow-hidden shadow-sm sm:rounded-lg transition hover:shadow-md hover:ring-2 hover:ring-rose-200"
+                    >
+                        <div class="p-6">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 w-2 h-10 rounded" :class="manualWorkRecordCount > 0 ? 'bg-rose-500' : 'bg-gray-300'"></div>
+                                <div class="ml-4 flex-1">
+                                    <p class="text-sm text-gray-500">手動登録件数（図番未紐づけ）</p>
+                                    <p class="text-2xl font-bold" :class="manualWorkRecordCount > 0 ? 'text-rose-600' : 'text-gray-900'">
+                                        {{ manualWorkRecordCount }} 件
+                                    </p>
+                                    <p class="text-xs text-gray-400 mt-1">
+                                        {{ manualWorkRecordCount > 0 ? 'クリックして図番・単価を紐づけ' : '未処理なし' }}
+                                    </p>
+                                </div>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m9 5 7 7-7 7" />
+                                </svg>
+                            </div>
+                        </div>
+                    </Link>
                 </div>
 
                 <!-- 単価交渉支援（採算分析） -->

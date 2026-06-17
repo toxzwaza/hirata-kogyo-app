@@ -11,6 +11,7 @@ use App\Http\Controllers\StaffInvoiceController;
 use App\Http\Controllers\WorkMethodController;
 use App\Http\Controllers\WorkRateController;
 use App\Http\Controllers\WorkRecordController;
+use App\Http\Controllers\ManualWorkRecordController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 
@@ -61,6 +62,15 @@ Route::middleware('auth')->group(function () {
     // ダッシュボード採算分析の明細（モーダル用 JSON）
     Route::get('/dashboard/work-records', [DashboardController::class, 'workRecords'])
         ->name('dashboard.work-records');
+
+    // 手動登録（未登録図番）の紐づけ管理
+    // ※ Route::resource('work-records') の {work_record} に捕捉されないよう先に定義する
+    Route::get('/work-records/manual', [ManualWorkRecordController::class, 'index'])
+        ->name('work-records.manual.index');
+    Route::post('/work-records/manual/link-existing', [ManualWorkRecordController::class, 'linkExisting'])
+        ->name('work-records.manual.link-existing');
+    Route::post('/work-records/manual/create-and-link', [ManualWorkRecordController::class, 'createAndLink'])
+        ->name('work-records.manual.create-and-link');
 
     // 作業実績管理
     Route::resource('work-records', WorkRecordController::class);

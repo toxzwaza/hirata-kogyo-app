@@ -8,14 +8,21 @@ const props = defineProps({
     drawings: Array,
     workMethods: Array,
     defectTypes: Array,
+    clients: {
+        type: Array,
+        default: () => [],
+    },
     todayRecords: {
         type: Array,
         default: () => [],
     },
 });
 
-// 得意先リスト（重複なし）
-const clients = computed(() => {
+// 手動入力モード（未登録図番をテキストで登録する）
+const isManualMode = ref(false);
+
+// 通常モードの得意先フィルター用リスト（図番を持つ得意先のみ・重複なし）
+const filterClients = computed(() => {
     const clientMap = new Map();
     props.drawings.forEach(drawing => {
         if (drawing.client && !clientMap.has(drawing.client.id)) {
@@ -168,6 +175,10 @@ const initialEndDateTime = getInitialEndDateTime(initialStartDate, initialStartH
 
 const form = useForm({
     drawing_id: '',
+    is_manual: false,
+    manual_drawing_number: '',
+    manual_product_name: '',
+    manual_client_name: '',
     work_method_id: '',
     staff_id: props.currentStaff.id,
     start_date: initialStartDate,
@@ -177,10 +188,29 @@ const form = useForm({
     end_hour: urlParams.end_hour || initialEndDateTime.hour,
     end_minute: urlParams.end_minute || getCurrentMinute(),
     quantity_good: 0,
-    quantity_ng: 0,
     memo: '',
-    defects: [],
 });
+
+// 手動入力モードの切替
+const enableManualMode = () => {
+    isManualMode.value = true;
+    form.is_manual = true;
+    // 通常選択の状態をクリア
+    form.drawing_id = '';
+    clientFilter.value = '';
+    productNameFilter.value = '';
+    drawingNumberFilter.value = '';
+    form.work_method_id = '';
+};
+
+const disableManualMode = () => {
+    isManualMode.value = false;
+    form.is_manual = false;
+    form.manual_drawing_number = '';
+    form.manual_product_name = '';
+    form.manual_client_name = '';
+    form.work_method_id = '';
+};
 
 // 日付・時間・分を結合してdatetime形式（YYYY-MM-DDTHH:mm）に変換
 const combineDateTime = (date, hour, minute) => {
@@ -228,25 +258,6 @@ watch([() => form.start_date, () => form.start_hour, () => form.start_minute], (
     }
 });
 
-const addDefect = () => {
-    form.defects.push({
-        defect_type_id: '',
-        defect_quantity: 1,
-    });
-};
-
-const removeDefect = (index) => {
-    form.defects.splice(index, 1);
-};
-
-const totalDefectQuantity = computed(() => {
-    return form.defects.reduce((sum, defect) => sum + (parseInt(defect.defect_quantity) || 0), 0);
-});
-
-const isDefectQuantityValid = computed(() => {
-    return totalDefectQuantity.value === form.quantity_ng;
-});
-
 // 開始時刻が17時10分以降かどうかを判定
 const isOvertimeMode = computed(() => {
     if (!form.start_hour || form.start_minute === undefined) {
@@ -261,10 +272,15 @@ const isOvertimeMode = computed(() => {
 
 // 選択された図番に関連する作業方法のみをフィルター
 const availableWorkMethods = computed(() => {
+    // 手動入力モードは図番に紐づかないため、全作業方法から選択する
+    if (isManualMode.value) {
+        return props.workMethods;
+    }
+
     if (!form.drawing_id) {
         return [];
     }
-    
+
     // drawing_idを数値に変換して比較
     const drawingId = typeof form.drawing_id === 'string' ? parseInt(form.drawing_id) : form.drawing_id;
     
@@ -328,9 +344,7 @@ const editForm = useForm({
     end_hour: '',
     end_minute: '',
     quantity_good: 0,
-    quantity_ng: 0,
     memo: '',
-    defects: [],
 });
 
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -360,34 +374,13 @@ const openEdit = (rec) => {
     editForm.end_hour = e.hour;
     editForm.end_minute = e.minute;
     editForm.quantity_good = rec.quantity_good ?? 0;
-    editForm.quantity_ng = rec.quantity_ng ?? 0;
     editForm.memo = rec.memo ?? '';
-    editForm.defects = (rec.defects || []).map((d) => ({
-        defect_type_id: d.defect_type_id,
-        defect_quantity: d.defect_quantity,
-    }));
     editingRecord.value = rec;
 };
 
 const closeEdit = () => {
     editingRecord.value = null;
     editForm.clearErrors();
-};
-
-const editTotalDefectQuantity = computed(() =>
-    editForm.defects.reduce((sum, d) => sum + (parseInt(d.defect_quantity) || 0), 0)
-);
-
-const editIsDefectQuantityValid = computed(() =>
-    editTotalDefectQuantity.value === (parseInt(editForm.quantity_ng) || 0)
-);
-
-const editAddDefect = () => {
-    editForm.defects.push({ defect_type_id: '', defect_quantity: 1 });
-};
-
-const editRemoveDefect = (i) => {
-    editForm.defects.splice(i, 1);
 };
 
 const submitEdit = () => {
@@ -442,12 +435,10 @@ const todayLabel = computed(() => {
 const todaySummary = computed(() => {
     const list = props.todayRecords || [];
     const good = list.reduce((s, r) => s + (parseInt(r.quantity_good) || 0), 0);
-    const ng = list.reduce((s, r) => s + (parseInt(r.quantity_ng) || 0), 0);
     const mins = list.reduce((s, r) => s + (parseInt(r.work_minutes) || 0), 0);
     return {
         count: list.length,
         good,
-        ng,
         minutes: mins,
     };
 });
@@ -529,78 +520,163 @@ const submit = () => {
         </button>
 
         <form @submit.prevent="submit" class="space-y-6">
-            <!-- 図番選択（得意先・品名・図番の3軸絞り込み） -->
+            <!-- 図番選択 -->
             <div class="bg-white rounded-xl shadow-md p-5 border border-gray-200">
                 <label class="block text-lg font-bold text-gray-800 mb-4">図番 *</label>
-                <div class="grid grid-cols-1 gap-4">
-                    <!-- 得意先フィルター -->
-                    <div>
-                        <label class="block text-base font-semibold text-gray-700 mb-2">得意先</label>
-                        <select
-                            v-model="clientFilter"
-                            class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                            @change="productNameFilter = ''; drawingNumberFilter = ''; form.drawing_id = ''; form.work_method_id = ''"
-                        >
-                            <option value="">すべて</option>
-                            <option
-                                v-for="client in clients"
-                                :key="client.id"
-                                :value="client.id"
-                            >
-                                {{ client.name }}
-                            </option>
-                        </select>
-                    </div>
 
-                    <!-- 品名フィルター（部分一致） -->
-                    <div>
-                        <label class="block text-base font-semibold text-gray-700 mb-2">品名</label>
-                        <div class="relative">
+                <!-- 通常モード：得意先・品名・図番の3軸絞り込み -->
+                <template v-if="!isManualMode">
+                    <div class="grid grid-cols-1 gap-4">
+                        <!-- 得意先フィルター -->
+                        <div>
+                            <label class="block text-base font-semibold text-gray-700 mb-2">得意先</label>
+                            <select
+                                v-model="clientFilter"
+                                class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                                @change="productNameFilter = ''; drawingNumberFilter = ''; form.drawing_id = ''; form.work_method_id = ''"
+                            >
+                                <option value="">すべて</option>
+                                <option
+                                    v-for="client in filterClients"
+                                    :key="client.id"
+                                    :value="client.id"
+                                >
+                                    {{ client.name }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- 品名フィルター（部分一致） -->
+                        <div>
+                            <label class="block text-base font-semibold text-gray-700 mb-2">品名</label>
+                            <div class="relative">
+                                <input
+                                    v-model="productNameFilter"
+                                    type="text"
+                                    placeholder="品名の一部を入力（例：ケーシング）"
+                                    class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-4 pr-12"
+                                />
+                                <button
+                                    v-if="productNameFilter"
+                                    type="button"
+                                    @click="productNameFilter = ''"
+                                    class="absolute top-1/2 right-3 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 text-xl"
+                                    aria-label="品名クリア"
+                                >×</button>
+                            </div>
+                        </div>
+
+                        <!-- 図番入力（datalist使用） -->
+                        <div>
+                            <label class="block text-base font-semibold text-gray-700 mb-2">図番</label>
                             <input
-                                v-model="productNameFilter"
+                                v-model="drawingNumberFilter"
                                 type="text"
-                                placeholder="品名の一部を入力（例：ケーシング）"
-                                class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-4 pr-12"
+                                list="drawing-number-list"
+                                placeholder="図番を入力してください"
+                                class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-4"
+                                :class="{ 'border-red-500': form.errors.drawing_id }"
+                                @input="onDrawingNumberInput"
                             />
-                            <button
-                                v-if="productNameFilter"
-                                type="button"
-                                @click="productNameFilter = ''"
-                                class="absolute top-1/2 right-3 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 text-xl"
-                                aria-label="品名クリア"
-                            >×</button>
+                            <datalist id="drawing-number-list">
+                                <option
+                                    v-for="drawing in filteredDrawings"
+                                    :key="drawing.id"
+                                    :value="drawing.drawing_number"
+                                >
+                                    {{ drawing.drawing_number }} - {{ drawing.product_name }} ({{ drawing.client.name }})
+                                </option>
+                            </datalist>
+                            <p class="mt-2 text-sm text-gray-500">
+                                絞り込み結果: <span class="font-semibold text-gray-700">{{ filteredDrawings.length }}</span> 件
+                            </p>
+                        </div>
+                    </div>
+                    <p v-if="form.errors.drawing_id" class="mt-2 text-base text-red-600 font-semibold">
+                        {{ form.errors.drawing_id }}
+                    </p>
+
+                    <!-- 手動入力モードへの切替 -->
+                    <button
+                        type="button"
+                        @click="enableManualMode"
+                        class="mt-4 w-full h-14 flex items-center justify-center gap-2 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 text-amber-800 font-bold rounded-lg border-2 border-amber-300 transition"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 0 0-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+                        </svg>
+                        対象の図番がみつからない場合
+                    </button>
+                </template>
+
+                <!-- 手動入力モード：品番・品名・得意先をテキスト入力 -->
+                <template v-else>
+                    <div class="bg-amber-50 border-2 border-amber-300 rounded-lg p-3 mb-4">
+                        <div class="text-base font-bold text-amber-800">手動入力モード</div>
+                        <div class="text-sm text-amber-700 mt-0.5">
+                            未登録の図番をテキストで登録します。後で管理者が図番・単価に紐づけます。
                         </div>
                     </div>
 
-                    <!-- 図番入力（datalist使用） -->
-                    <div>
-                        <label class="block text-base font-semibold text-gray-700 mb-2">図番</label>
-                        <input
-                            v-model="drawingNumberFilter"
-                            type="text"
-                            list="drawing-number-list"
-                            placeholder="図番を入力してください"
-                            class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-4"
-                            :class="{ 'border-red-500': form.errors.drawing_id }"
-                            @input="onDrawingNumberInput"
-                        />
-                        <datalist id="drawing-number-list">
-                            <option
-                                v-for="drawing in filteredDrawings"
-                                :key="drawing.id"
-                                :value="drawing.drawing_number"
-                            >
-                                {{ drawing.drawing_number }} - {{ drawing.product_name }} ({{ drawing.client.name }})
-                            </option>
-                        </datalist>
-                        <p class="mt-2 text-sm text-gray-500">
-                            絞り込み結果: <span class="font-semibold text-gray-700">{{ filteredDrawings.length }}</span> 件
-                        </p>
+                    <div class="grid grid-cols-1 gap-4">
+                        <!-- 得意先（選択＋手動入力 datalist） -->
+                        <div>
+                            <label class="block text-base font-semibold text-gray-700 mb-2">得意先</label>
+                            <input
+                                v-model="form.manual_client_name"
+                                type="text"
+                                list="manual-client-list"
+                                placeholder="選択または入力してください"
+                                class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-4"
+                            />
+                            <datalist id="manual-client-list">
+                                <option
+                                    v-for="client in clients"
+                                    :key="client.id"
+                                    :value="client.name"
+                                />
+                            </datalist>
+                        </div>
+
+                        <!-- 品番（必須） -->
+                        <div>
+                            <label class="block text-base font-semibold text-gray-700 mb-2">品番 *</label>
+                            <input
+                                v-model="form.manual_drawing_number"
+                                type="text"
+                                placeholder="品番を入力してください"
+                                class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-4"
+                                :class="{ 'border-red-500': form.errors.manual_drawing_number }"
+                            />
+                            <p v-if="form.errors.manual_drawing_number" class="mt-2 text-base text-red-600 font-semibold">
+                                {{ form.errors.manual_drawing_number }}
+                            </p>
+                        </div>
+
+                        <!-- 品名（任意） -->
+                        <div>
+                            <label class="block text-base font-semibold text-gray-700 mb-2">品名（わかる場合）</label>
+                            <input
+                                v-model="form.manual_product_name"
+                                type="text"
+                                placeholder="品名がわかれば入力してください"
+                                class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-4"
+                            />
+                        </div>
                     </div>
-                </div>
-                <p v-if="form.errors.drawing_id" class="mt-2 text-base text-red-600 font-semibold">
-                    {{ form.errors.drawing_id }}
-                </p>
+
+                    <!-- 通常選択に戻す -->
+                    <button
+                        type="button"
+                        @click="disableManualMode"
+                        class="mt-4 w-full h-12 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 font-bold rounded-lg border-2 border-gray-300 transition"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        登録済み図番の選択に戻す
+                    </button>
+                </template>
             </div>
 
             <!-- 作業方法 -->
@@ -610,9 +686,9 @@ const submit = () => {
                     v-model="form.work_method_id"
                     class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                     :class="{ 'border-red-500': form.errors.work_method_id }"
-                    :disabled="!form.drawing_id"
+                    :disabled="!isManualMode && !form.drawing_id"
                 >
-                    <option value="">{{ form.drawing_id ? '選択してください' : '図番を選択してください' }}</option>
+                    <option value="">{{ (isManualMode || form.drawing_id) ? '選択してください' : '図番を選択してください' }}</option>
                     <option
                         v-for="method in availableWorkMethods"
                         :key="method.id"
@@ -624,7 +700,7 @@ const submit = () => {
                 <p v-if="form.errors.work_method_id" class="mt-2 text-base text-red-600 font-semibold">
                     {{ form.errors.work_method_id }}
                 </p>
-                <p v-if="!form.drawing_id" class="mt-2 text-base text-gray-500">
+                <p v-if="!isManualMode && !form.drawing_id" class="mt-2 text-base text-gray-500">
                     図番を選択すると作業方法が表示されます
                 </p>
             </div>
@@ -746,37 +822,19 @@ const submit = () => {
                 </p>
             </div>
 
-            <!-- 良品数・不良数（2カラム） -->
-            <div class="grid grid-cols-2 gap-4">
-                <!-- 良品数 -->
-                <div class="bg-white rounded-xl shadow-md p-5 border border-gray-200">
-                    <label class="block text-lg font-bold text-gray-800 mb-4">良品数 *</label>
-                    <input
-                        v-model.number="form.quantity_good"
-                        type="number"
-                        min="0"
-                        class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-4"
-                        :class="{ 'border-red-500': form.errors.quantity_good }"
-                    />
-                    <p v-if="form.errors.quantity_good" class="mt-2 text-base text-red-600 font-semibold">
-                        {{ form.errors.quantity_good }}
-                    </p>
-                </div>
-
-                <!-- 不良数 -->
-                <div class="bg-white rounded-xl shadow-md p-5 border border-gray-200">
-                    <label class="block text-lg font-bold text-gray-800 mb-4">不良数 *</label>
-                    <input
-                        v-model.number="form.quantity_ng"
-                        type="number"
-                        min="0"
-                        class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-4"
-                        :class="{ 'border-red-500': form.errors.quantity_ng }"
-                    />
-                    <p v-if="form.errors.quantity_ng" class="mt-2 text-base text-red-600 font-semibold">
-                        {{ form.errors.quantity_ng }}
-                    </p>
-                </div>
+            <!-- 良品数（横いっぱい） -->
+            <div class="bg-white rounded-xl shadow-md p-5 border border-gray-200">
+                <label class="block text-lg font-bold text-gray-800 mb-4">良品数 *</label>
+                <input
+                    v-model.number="form.quantity_good"
+                    type="number"
+                    min="0"
+                    class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-4"
+                    :class="{ 'border-red-500': form.errors.quantity_good }"
+                />
+                <p v-if="form.errors.quantity_good" class="mt-2 text-base text-red-600 font-semibold">
+                    {{ form.errors.quantity_good }}
+                </p>
             </div>
 
             <!-- 備考 -->
@@ -792,68 +850,6 @@ const submit = () => {
                 <p v-if="form.errors.memo" class="mt-2 text-base text-red-600 font-semibold">
                     {{ form.errors.memo }}
                 </p>
-            </div>
-
-            <!-- 不良内訳 -->
-            <div class="bg-white rounded-xl shadow-md p-5 border border-gray-200">
-                <div class="flex justify-between items-center mb-4">
-                    <label class="block text-lg font-bold text-gray-800">不良内訳</label>
-                    <button
-                        type="button"
-                        @click="addDefect"
-                        class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg text-base shadow-md"
-                    >
-                        ＋ 追加
-                    </button>
-                </div>
-                <div v-if="form.defects.length > 0" class="space-y-4">
-                    <div
-                        v-for="(defect, index) in form.defects"
-                        :key="index"
-                        class="bg-gray-50 rounded-lg p-4 border border-gray-300"
-                    >
-                        <div class="flex gap-3 items-end">
-                            <div class="flex-1">
-                                <label class="block text-base font-semibold text-gray-700 mb-2">不良種類</label>
-                                <select
-                                    v-model="defect.defect_type_id"
-                                    class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                                >
-                                    <option value="">選択してください</option>
-                                    <option
-                                        v-for="type in defectTypes"
-                                        :key="type.id"
-                                        :value="type.id"
-                                    >
-                                        {{ type.name }}
-                                    </option>
-                                </select>
-                            </div>
-                            <div class="w-28">
-                                <label class="block text-base font-semibold text-gray-700 mb-2">数量</label>
-                                <input
-                                    v-model.number="defect.defect_quantity"
-                                    type="number"
-                                    min="1"
-                                    class="w-full h-14 text-lg rounded-lg border-2 border-gray-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-3"
-                                />
-                            </div>
-                            <button
-                                type="button"
-                                @click="removeDefect(index)"
-                                class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg h-14 text-base shadow-md"
-                            >
-                                削除
-                            </button>
-                        </div>
-                    </div>
-                    <div class="text-base font-semibold p-3 rounded-lg" :class="isDefectQuantityValid ? 'bg-green-50 text-green-700 border border-green-300' : 'bg-red-50 text-red-700 border border-red-300'">
-                        合計: {{ totalDefectQuantity }} / 不良数: {{ form.quantity_ng }}
-                        <span v-if="!isDefectQuantityValid" class="block mt-1">
-                            ⚠ 不良内訳の合計が不良数と一致していません
-                        </span>
-                    </div>
-                </div>
             </div>
 
             <!-- エラーメッセージ -->
@@ -947,7 +943,7 @@ const submit = () => {
                             <template v-if="!editingRecord">
                                 <!-- サマリー -->
                                 <div class="px-5 pt-4 pb-2 bg-white border-b border-gray-200">
-                                    <div class="grid grid-cols-4 gap-2">
+                                    <div class="grid grid-cols-3 gap-2">
                                         <div class="text-center p-2 rounded-lg bg-slate-50 border border-slate-200">
                                             <div class="text-[11px] text-slate-500 font-semibold">件数</div>
                                             <div class="text-xl font-bold text-slate-800">{{ todaySummary.count }}</div>
@@ -955,10 +951,6 @@ const submit = () => {
                                         <div class="text-center p-2 rounded-lg bg-emerald-50 border border-emerald-200">
                                             <div class="text-[11px] text-emerald-700 font-semibold">良品計</div>
                                             <div class="text-xl font-bold text-emerald-700">{{ todaySummary.good }}</div>
-                                        </div>
-                                        <div class="text-center p-2 rounded-lg bg-rose-50 border border-rose-200">
-                                            <div class="text-[11px] text-rose-700 font-semibold">不良計</div>
-                                            <div class="text-xl font-bold text-rose-700">{{ todaySummary.ng }}</div>
                                         </div>
                                         <div class="text-center p-2 rounded-lg bg-amber-50 border border-amber-200">
                                             <div class="text-[11px] text-amber-700 font-semibold">工数計</div>
@@ -1001,47 +993,29 @@ const submit = () => {
 
                                         <!-- 本体 -->
                                         <div class="p-4 space-y-3">
-                                            <!-- 得意先・品名・図番 -->
+                                            <!-- 得意先・品名・図番（手動登録分は手動入力値にフォールバック） -->
                                             <div>
                                                 <div class="text-xs text-gray-500 mb-0.5">
-                                                    {{ rec.drawing?.client?.name || '—' }}
+                                                    {{ rec.drawing?.client?.name || rec.manual_client_name || '—' }}
                                                 </div>
                                                 <div class="text-base font-bold text-gray-800 leading-snug">
-                                                    {{ rec.drawing?.product_name || '—' }}
+                                                    {{ rec.drawing?.product_name || rec.manual_product_name || '—' }}
                                                 </div>
                                                 <div class="inline-flex items-center gap-1 mt-1 text-xs font-mono text-sky-700 bg-sky-50 border border-sky-200 rounded px-2 py-0.5">
-                                                    図番: {{ rec.drawing?.drawing_number || '—' }}
+                                                    図番: {{ rec.drawing?.drawing_number || rec.manual_drawing_number || '—' }}
                                                 </div>
                                                 <div class="inline-flex items-center gap-1 mt-1 ml-1 text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded px-2 py-0.5">
                                                     {{ rec.work_method?.name || '—' }}
                                                 </div>
-                                            </div>
-
-                                            <!-- 数量 -->
-                                            <div class="grid grid-cols-2 gap-2">
-                                                <div class="text-center p-2 rounded-lg bg-emerald-50 border border-emerald-200">
-                                                    <div class="text-[11px] text-emerald-700 font-semibold">良品</div>
-                                                    <div class="text-xl font-bold text-emerald-700">{{ rec.quantity_good }}</div>
-                                                </div>
-                                                <div class="text-center p-2 rounded-lg" :class="rec.quantity_ng > 0 ? 'bg-rose-50 border border-rose-200' : 'bg-gray-50 border border-gray-200'">
-                                                    <div class="text-[11px] font-semibold" :class="rec.quantity_ng > 0 ? 'text-rose-700' : 'text-gray-500'">不良</div>
-                                                    <div class="text-xl font-bold" :class="rec.quantity_ng > 0 ? 'text-rose-700' : 'text-gray-400'">{{ rec.quantity_ng }}</div>
+                                                <div v-if="!rec.drawing_id" class="inline-flex items-center gap-1 mt-1 ml-1 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-300 rounded px-2 py-0.5">
+                                                    手動登録（未紐づけ）
                                                 </div>
                                             </div>
 
-                                            <!-- 不良内訳 -->
-                                            <div v-if="rec.defects && rec.defects.length > 0" class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2">
-                                                <div class="text-[11px] font-bold text-rose-800 mb-1">不良内訳</div>
-                                                <div class="flex flex-wrap gap-1.5">
-                                                    <span
-                                                        v-for="d in rec.defects"
-                                                        :key="d.id"
-                                                        class="text-xs bg-white border border-rose-300 text-rose-700 rounded-full px-2 py-0.5"
-                                                    >
-                                                        {{ d.defect_type?.name || '—' }}
-                                                        <span class="font-bold ml-1">× {{ d.defect_quantity }}</span>
-                                                    </span>
-                                                </div>
+                                            <!-- 良品数 -->
+                                            <div class="text-center p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                                                <div class="text-[11px] text-emerald-700 font-semibold">良品</div>
+                                                <div class="text-xl font-bold text-emerald-700">{{ rec.quantity_good }}</div>
                                             </div>
 
                                             <!-- 備考 -->
@@ -1095,14 +1069,17 @@ const submit = () => {
                                 <div class="px-4 pt-4 pb-3 bg-white border-b border-gray-200">
                                     <div class="text-[11px] text-gray-500 mb-1">編集対象</div>
                                     <div class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
-                                        <div class="text-xs text-gray-500">{{ editingRecord.drawing?.client?.name || '—' }}</div>
-                                        <div class="text-sm font-bold text-gray-800 leading-tight">{{ editingRecord.drawing?.product_name || '—' }}</div>
+                                        <div class="text-xs text-gray-500">{{ editingRecord.drawing?.client?.name || editingRecord.manual_client_name || '—' }}</div>
+                                        <div class="text-sm font-bold text-gray-800 leading-tight">{{ editingRecord.drawing?.product_name || editingRecord.manual_product_name || '—' }}</div>
                                         <div class="mt-1 flex flex-wrap gap-1">
                                             <span class="text-[11px] font-mono text-sky-700 bg-sky-50 border border-sky-200 rounded px-2 py-0.5">
-                                                図番: {{ editingRecord.drawing?.drawing_number || '—' }}
+                                                図番: {{ editingRecord.drawing?.drawing_number || editingRecord.manual_drawing_number || '—' }}
                                             </span>
                                             <span class="text-[11px] text-purple-700 bg-purple-50 border border-purple-200 rounded px-2 py-0.5">
                                                 {{ editingRecord.work_method?.name || '—' }}
+                                            </span>
+                                            <span v-if="!editingRecord.drawing_id" class="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-300 rounded px-2 py-0.5">
+                                                手動登録（未紐づけ）
                                             </span>
                                         </div>
                                         <div class="text-[11px] text-gray-400 mt-1">※ 図番・作業方法の変更はできません</div>
@@ -1185,30 +1162,17 @@ const submit = () => {
                                         <p v-if="editForm.errors.end_time" class="mt-2 text-sm text-red-600 font-semibold">{{ editForm.errors.end_time }}</p>
                                     </div>
 
-                                    <!-- 数量 -->
-                                    <div class="grid grid-cols-2 gap-3">
-                                        <div class="bg-white rounded-xl border border-gray-200 p-4">
-                                            <label class="block text-base font-bold text-gray-800 mb-2">良品数 *</label>
-                                            <input
-                                                v-model.number="editForm.quantity_good"
-                                                type="number"
-                                                min="0"
-                                                class="w-full h-12 text-base rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-3"
-                                                :class="{ 'border-red-500': editForm.errors.quantity_good }"
-                                            />
-                                            <p v-if="editForm.errors.quantity_good" class="mt-1 text-xs text-red-600 font-semibold">{{ editForm.errors.quantity_good }}</p>
-                                        </div>
-                                        <div class="bg-white rounded-xl border border-gray-200 p-4">
-                                            <label class="block text-base font-bold text-gray-800 mb-2">不良数 *</label>
-                                            <input
-                                                v-model.number="editForm.quantity_ng"
-                                                type="number"
-                                                min="0"
-                                                class="w-full h-12 text-base rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-3"
-                                                :class="{ 'border-red-500': editForm.errors.quantity_ng }"
-                                            />
-                                            <p v-if="editForm.errors.quantity_ng" class="mt-1 text-xs text-red-600 font-semibold">{{ editForm.errors.quantity_ng }}</p>
-                                        </div>
+                                    <!-- 良品数（横いっぱい） -->
+                                    <div class="bg-white rounded-xl border border-gray-200 p-4">
+                                        <label class="block text-base font-bold text-gray-800 mb-2">良品数 *</label>
+                                        <input
+                                            v-model.number="editForm.quantity_good"
+                                            type="number"
+                                            min="0"
+                                            class="w-full h-12 text-base rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-3"
+                                            :class="{ 'border-red-500': editForm.errors.quantity_good }"
+                                        />
+                                        <p v-if="editForm.errors.quantity_good" class="mt-1 text-xs text-red-600 font-semibold">{{ editForm.errors.quantity_good }}</p>
                                     </div>
 
                                     <!-- 備考 -->
@@ -1221,59 +1185,6 @@ const submit = () => {
                                             class="w-full text-base rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-3 py-2"
                                             :class="{ 'border-red-500': editForm.errors.memo }"
                                         />
-                                    </div>
-
-                                    <!-- 不良内訳 -->
-                                    <div class="bg-white rounded-xl border border-gray-200 p-4">
-                                        <div class="flex items-center justify-between mb-3">
-                                            <label class="block text-base font-bold text-gray-800">不良内訳</label>
-                                            <button
-                                                type="button"
-                                                @click="editAddDefect"
-                                                class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg text-sm shadow-sm"
-                                            >＋ 追加</button>
-                                        </div>
-                                        <div v-if="editForm.defects.length > 0" class="space-y-3">
-                                            <div
-                                                v-for="(defect, i) in editForm.defects"
-                                                :key="i"
-                                                class="bg-gray-50 rounded-lg p-3 border border-gray-300"
-                                            >
-                                                <div class="flex gap-2 items-end">
-                                                    <div class="flex-1">
-                                                        <label class="block text-xs font-semibold text-gray-700 mb-1">不良種類</label>
-                                                        <select
-                                                            v-model="defect.defect_type_id"
-                                                            class="w-full h-11 text-sm rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                                                        >
-                                                            <option value="">選択してください</option>
-                                                            <option v-for="type in defectTypes" :key="type.id" :value="type.id">{{ type.name }}</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="w-20">
-                                                        <label class="block text-xs font-semibold text-gray-700 mb-1">数量</label>
-                                                        <input
-                                                            v-model.number="defect.defect_quantity"
-                                                            type="number"
-                                                            min="1"
-                                                            class="w-full h-11 text-sm rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 px-2"
-                                                        />
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        @click="editRemoveDefect(i)"
-                                                        class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg h-11 text-sm shadow-sm"
-                                                    >削除</button>
-                                                </div>
-                                            </div>
-                                            <div
-                                                class="text-sm font-semibold p-2 rounded-lg"
-                                                :class="editIsDefectQuantityValid ? 'bg-green-50 text-green-700 border border-green-300' : 'bg-red-50 text-red-700 border border-red-300'"
-                                            >
-                                                合計: {{ editTotalDefectQuantity }} / 不良数: {{ editForm.quantity_ng }}
-                                                <span v-if="!editIsDefectQuantityValid" class="block mt-1">⚠ 不良内訳の合計が不良数と一致していません</span>
-                                            </div>
-                                        </div>
                                     </div>
 
                                     <!-- エラー -->

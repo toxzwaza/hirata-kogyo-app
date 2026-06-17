@@ -47,6 +47,7 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'summary' => $this->dashboard->summary($fromStr, $toStr),
+            'manualWorkRecordCount' => $this->dashboard->manualWorkRecordCount(),
             'rateNegotiation' => $this->dashboard->rateNegotiation($fromStr, $toStr),
             'staffProductivity' => $this->dashboard->staffProductivity($fromStr, $toStr),
             'monthlyTrend' => $this->dashboard->monthlyTrend(6),

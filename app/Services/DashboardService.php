@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ClientInvoice;
 use App\Models\Drawing;
 use App\Models\StaffInvoice;
+use App\Models\WorkRecord;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -51,6 +52,15 @@ class DashboardService
             'client_invoice_total' => (float) $clientTotal,
             'staff_invoice_total' => (float) $staffTotal,
         ];
+    }
+
+    /**
+     * 手動登録（未登録図番）で図番未紐づけの作業実績件数。
+     * drawing_id が null のものを未処理として数える。
+     */
+    public function manualWorkRecordCount(): int
+    {
+        return WorkRecord::whereNull('drawing_id')->count();
     }
 
     /**

@@ -6,13 +6,19 @@ import { ref, computed } from 'vue';
 const props = defineProps({
     drawings: Array,
     workMethods: Array,
+    presetDrawingId: { type: Number, default: null },
 });
 
 // 一覧の検索条件を保持して戻る（登録URLのクエリ文字列を引き継ぐ）
 const backUrl = route('work-rates.index') + window.location.search;
 
+// 図番編集画面などから図番指定で遷移してきた場合、図番入力欄を初期表示
+const presetDrawing = props.presetDrawingId
+    ? props.drawings.find(d => d.id === props.presetDrawingId)
+    : null;
+
 // フィルター用のリアクティブ変数
-const drawingNumberFilter = ref('');
+const drawingNumberFilter = ref(presetDrawing ? presetDrawing.drawing_number : '');
 
 // 図番でフィルターされた図番リスト
 const filteredDrawings = computed(() => {
@@ -55,7 +61,7 @@ const onDrawingNumberInput = (event) => {
 };
 
 const form = useForm({
-    drawing_id: '',
+    drawing_id: props.presetDrawingId ?? '',
     work_method_id: '',
     rate_employee: 0,
     rate_contractor: 0,

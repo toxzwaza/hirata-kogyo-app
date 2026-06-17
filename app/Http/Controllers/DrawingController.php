@@ -123,9 +123,56 @@ class DrawingController extends Controller
         $drawing->load('client');
         $clients = Client::orderBy('name')->get();
 
+        $today = now()->format('Y-m-d');
+
+        // この図番の現在有効な作業単価（適用期間内・適用フラグON）を作業方法ごとに取得
+        $drawing->load([
+            'workRates' => function ($q) use ($today) {
+                $q->where('active_flg', true)
+                    ->where('effective_from', '<=', $today)
+                    ->where(function ($q2) use ($today) {
+                        $q2->whereNull('effective_to')
+                            ->orWhere('effective_to', '>=', $today);
+                    })
+                    ->with('workMethod')
+                    ->orderBy('work_method_id')
+                    ->orderBy('effective_from', 'desc');
+            },
+        ]);
+
+        // 閲覧用に整形。個単価(円/個) = round(1個あたり重量(kg/個) × 客先kg単価(円/kg))
+        $weight = (float) $drawing->weight_per_unit;
+        $seenMethods = [];
+        $workRates = [];
+
+        foreach ($drawing->workRates as $workRate) {
+            // 作業方法ごとに最新の有効単価のみ採用
+            if (in_array($workRate->work_method_id, $seenMethods, true)) {
+                continue;
+            }
+            $seenMethods[] = $workRate->work_method_id;
+
+            $kgRate = $workRate->rate_employee !== null ? (float) $workRate->rate_employee : null;
+
+            $workRates[] = [
+                'work_rate_id' => $workRate->id,
+                'work_method_name' => $workRate->workMethod->name ?? '',
+                'rate_employee' => $kgRate,
+                'unit_price_employee' => $kgRate !== null ? round($weight * $kgRate) : null,
+                'rate_contractor' => $workRate->rate_contractor !== null ? (float) $workRate->rate_contractor : null,
+                'rate_overtime' => $workRate->rate_overtime !== null ? (float) $workRate->rate_overtime : null,
+                'effective_from' => $workRate->effective_from?->format('Y-m-d'),
+                'effective_to' => $workRate->effective_to?->format('Y-m-d'),
+                'active_flg' => $workRate->active_flg,
+            ];
+        }
+
+        $drawing->unsetRelation('workRates');
+
         return Inertia::render('Drawings/Edit', [
             'drawing' => $drawing,
             'clients' => $clients,
+            'workRates' => $workRates,
         ]);
     }
 

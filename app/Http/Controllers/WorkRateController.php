@@ -52,7 +52,7 @@ class WorkRateController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $drawings = Drawing::where('active_flag', true)->with('client')->orderBy('drawing_number')->get();
         $workMethods = WorkMethod::orderBy('name')->get();
@@ -60,6 +60,8 @@ class WorkRateController extends Controller
         return Inertia::render('WorkRates/Create', [
             'drawings' => $drawings,
             'workMethods' => $workMethods,
+            // 図番編集画面などから図番を指定して遷移してきた場合の初期選択値
+            'presetDrawingId' => $request->filled('drawing_id') ? (int) $request->drawing_id : null,
         ]);
     }
 

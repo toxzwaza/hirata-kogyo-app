@@ -1,18 +1,18 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\WorkRecordController;
-use App\Http\Controllers\StaffInvoiceController;
-use App\Http\Controllers\ClientInvoiceController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\ClientInvoiceController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DefectTypeController;
 use App\Http\Controllers\DrawingController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\StaffController;
+use App\Http\Controllers\StaffInvoiceController;
 use App\Http\Controllers\WorkMethodController;
 use App\Http\Controllers\WorkRateController;
-use App\Http\Controllers\StaffController;
-use App\Http\Controllers\DefectTypeController;
+use App\Http\Controllers\WorkRecordController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,9 +29,9 @@ if (! app()->environment('production')) {
         return response()->json([
             'scheme' => request()->getScheme(),
             'secure' => request()->isSecure(),
-            'xfp'    => request()->header('x-forwarded-proto'),
-            'host'   => request()->getHost(),
-            'url'    => request()->fullUrl(),
+            'xfp' => request()->header('x-forwarded-proto'),
+            'host' => request()->getHost(),
+            'url' => request()->fullUrl(),
         ]);
     });
 }
@@ -40,9 +40,8 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])->name('dashboard');
 
 // スタッフ用スマホ画面（admin_flgに関係なくログイン可能）
 // staff_idパラメータがある場合は自動ログインするため、authミドルウェアは適用しない
@@ -58,6 +57,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // ダッシュボード採算分析の明細（モーダル用 JSON）
+    Route::get('/dashboard/work-records', [DashboardController::class, 'workRecords'])
+        ->name('dashboard.work-records');
 
     // 作業実績管理
     Route::resource('work-records', WorkRecordController::class);

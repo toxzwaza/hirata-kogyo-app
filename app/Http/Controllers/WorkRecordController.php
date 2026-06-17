@@ -10,6 +10,7 @@ use App\Models\WorkMethod;
 use App\Models\Staff;
 use App\Models\DefectType;
 use App\Models\WorkRate;
+use App\Models\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -150,6 +151,8 @@ class WorkRecordController extends Controller
 
         $workMethods = WorkMethod::orderBy('name')->get();
         $defectTypes = DefectType::orderBy('name')->get();
+        // 手動入力モードの得意先datalist用（登録済み得意先マスタ全件）
+        $clients = Client::orderBy('name')->get();
 
         // 当日の自分の登録履歴（新しい順）。請求書反映済みフラグも付与
         $todayRecords = WorkRecord::with([
@@ -172,6 +175,7 @@ class WorkRecordController extends Controller
             'drawings' => $drawings,
             'workMethods' => $workMethods,
             'defectTypes' => $defectTypes,
+            'clients' => $clients,
             'todayRecords' => $todayRecords,
         ]);
     }
@@ -183,7 +187,7 @@ class WorkRecordController extends Controller
     {
         // ログイン中のスタッフIDを使用（auth()->id()はlogin_idを返すため、user()->idを使用）
         $request->merge(['staff_id' => auth()->user()->id]);
-        
+
         DB::beginTransaction();
         try {
             // 作業時間を計算（分）
@@ -191,48 +195,53 @@ class WorkRecordController extends Controller
             $endTime = Carbon::parse($request->end_time);
             $workMinutes = $startTime->diffInMinutes($endTime);
 
-            // 有効な作業単価を取得
-            $drawing = Drawing::findOrFail($request->drawing_id);
-            $workRate = $drawing->getEffectiveWorkRate(
-                $request->work_method_id,
-                $startTime
-            );
+            $isManual = $request->boolean('is_manual');
 
-            if (!$workRate) {
-                return back()->withErrors([
-                    'work_method_id' => '指定された日時点で有効な作業単価が設定されていません。'
-                ]);
+            $drawingId = null;
+            $workRateId = null;
+            $manualDrawingNumber = null;
+            $manualProductName = null;
+            $manualClientName = null;
+
+            if ($isManual) {
+                // 手動入力（未登録図番）：図番・単価は未確定のまま登録し、後で紐づける
+                $manualDrawingNumber = $request->manual_drawing_number;
+                $manualProductName = $request->manual_product_name;
+                $manualClientName = $request->manual_client_name;
+            } else {
+                // 通常モード：登録済み図番から有効な作業単価を取得
+                $drawing = Drawing::findOrFail($request->drawing_id);
+                $workRate = $drawing->getEffectiveWorkRate(
+                    $request->work_method_id,
+                    $startTime
+                );
+
+                if (!$workRate) {
+                    return back()->withErrors([
+                        'work_method_id' => '指定された日時点で有効な作業単価が設定されていません。'
+                    ]);
+                }
+
+                $drawingId = $drawing->id;
+                $workRateId = $workRate->id;
             }
 
-            // 作業実績を作成
-            $workRecord = WorkRecord::create([
-                'drawing_id' => $request->drawing_id,
+            // 作業実績を作成（不良数は廃止のため常に0）
+            WorkRecord::create([
+                'drawing_id' => $drawingId,
                 'work_method_id' => $request->work_method_id,
                 'staff_id' => $request->staff_id,
-                'work_rate_id' => $workRate->id,
+                'work_rate_id' => $workRateId,
+                'manual_drawing_number' => $manualDrawingNumber,
+                'manual_product_name' => $manualProductName,
+                'manual_client_name' => $manualClientName,
                 'start_time' => $request->start_time,
                 'end_time' => $request->end_time,
                 'work_minutes' => $workMinutes,
                 'quantity_good' => $request->quantity_good,
-                'quantity_ng' => $request->quantity_ng,
+                'quantity_ng' => 0,
                 'memo' => $request->memo,
             ]);
-
-            // 不良内訳を登録
-            if ($request->filled('defects') && is_array($request->defects)) {
-                // 不良数の合計が一致するかチェック
-                $totalDefectQuantity = array_sum(array_column($request->defects, 'defect_quantity'));
-                if ($totalDefectQuantity !== $request->quantity_ng) {
-                    throw new \Exception('不良内訳の合計が不良数と一致しません。');
-                }
-
-                foreach ($request->defects as $defect) {
-                    $workRecord->defects()->create([
-                        'defect_type_id' => $defect['defect_type_id'],
-                        'defect_quantity' => $defect['defect_quantity'],
-                    ]);
-                }
-            }
 
             DB::commit();
 
@@ -275,39 +284,29 @@ class WorkRecordController extends Controller
             $endTime = Carbon::parse($request->end_time);
             $workMinutes = $startTime->diffInMinutes($endTime);
 
-            // 単価は開始時刻に基づき再評価（図番・作業方法は変更不可＝既存値を使用）
-            $drawing = Drawing::findOrFail($workRecord->drawing_id);
-            $workRate = $drawing->getEffectiveWorkRate($workRecord->work_method_id, $startTime);
-            if (!$workRate) {
-                return back()->withErrors([
-                    'error' => '指定された日時点で有効な作業単価が設定されていません。',
-                ]);
-            }
-
-            $workRecord->update([
-                'work_rate_id' => $workRate->id,
+            $updateData = [
                 'start_time' => $request->start_time,
                 'end_time' => $request->end_time,
                 'work_minutes' => $workMinutes,
                 'quantity_good' => $request->quantity_good,
-                'quantity_ng' => $request->quantity_ng,
                 'memo' => $request->memo,
-            ]);
+            ];
 
-            // 不良内訳の入れ替え
-            $workRecord->defects()->delete();
-            if ($request->filled('defects') && is_array($request->defects)) {
-                $totalDefectQuantity = array_sum(array_column($request->defects, 'defect_quantity'));
-                if ((int) $totalDefectQuantity !== (int) $request->quantity_ng) {
-                    throw new \Exception('不良内訳の合計が不良数と一致しません。');
-                }
-                foreach ($request->defects as $defect) {
-                    $workRecord->defects()->create([
-                        'defect_type_id' => $defect['defect_type_id'],
-                        'defect_quantity' => $defect['defect_quantity'],
+            // 登録済み図番のレコードのみ、開始時刻に基づき単価を再評価
+            // （手動・未紐づけレコードは drawing_id が null のため単価評価しない）
+            if ($workRecord->drawing_id) {
+                $drawing = Drawing::findOrFail($workRecord->drawing_id);
+                $workRate = $drawing->getEffectiveWorkRate($workRecord->work_method_id, $startTime);
+                if (!$workRate) {
+                    return back()->withErrors([
+                        'error' => '指定された日時点で有効な作業単価が設定されていません。',
                     ]);
                 }
+                $updateData['work_rate_id'] = $workRate->id;
             }
+
+            // 不良数・不良内訳は廃止。既存データは保全し、ここでは変更しない
+            $workRecord->update($updateData);
 
             DB::commit();
 

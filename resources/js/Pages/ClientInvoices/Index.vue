@@ -3,17 +3,18 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
-defineProps({
+const props = defineProps({
     invoices: Object,
     clients: Array,
     filters: Object,
 });
 
+// 絞り込み条件を props.filters から初期化（詳細からのブラウザバック時も保持される）
 const form = ref({
-    client_id: null,
-    status: null,
-    period_from: null,
-    period_to: null,
+    client_id: props.filters?.client_id ?? null,
+    status: props.filters?.status ?? null,
+    period_from: props.filters?.period_from ?? null,
+    period_to: props.filters?.period_to ?? null,
 });
 
 const applyFilters = () => {

@@ -32,7 +32,10 @@ class WorkRecordController extends Controller
             'workMethod',
             'staff.staffType',
             'workRate',
-            'defects.defectType'
+            'defects.defectType',
+            // 請求書に含まれる実績は編集不可のため、該当請求書番号を表示用に取得
+            'staffInvoiceDetails:id,work_record_id,staff_invoice_id',
+            'staffInvoiceDetails.staffInvoice:id,invoice_number',
         ])
             ->orderBy('start_time', 'desc');
 
@@ -512,7 +515,7 @@ class WorkRecordController extends Controller
 
             DB::commit();
 
-            return redirect()->route('work-records.index')
+            return redirect()->route('work-records.index', $this->backFilters($request))
                 ->with('success', '作業実績を更新しました。');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -523,9 +526,26 @@ class WorkRecordController extends Controller
     }
 
     /**
+     * 編集画面から引き継いだ一覧の絞り込み条件（back[...]）を取り出す。
+     * 更新・削除後に同じ絞り込みで一覧へ戻すために使用する。
+     */
+    private function backFilters(Request $request): array
+    {
+        $back = $request->input('back', []);
+        if (!is_array($back)) {
+            return [];
+        }
+
+        return collect($back)
+            ->only(['staff_id', 'drawing_id', 'work_method_id', 'date_from', 'date_to'])
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->all();
+    }
+
+    /**
      * 作業実績削除処理
      */
-    public function destroy(WorkRecord $workRecord)
+    public function destroy(Request $request, WorkRecord $workRecord)
     {
         // 請求書に含まれている場合は削除不可
         if ($workRecord->isInvoiced()) {
@@ -543,7 +563,7 @@ class WorkRecordController extends Controller
 
             DB::commit();
 
-            return redirect()->route('work-records.index')
+            return redirect()->route('work-records.index', $this->backFilters($request))
                 ->with('success', '作業実績を削除しました。');
         } catch (\Exception $e) {
             DB::rollBack();

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PreservesListFilters;
 use App\Http\Requests\StoreWorkRecordRequest;
 use App\Http\Requests\UpdateWorkRecordRequest;
 use App\Models\WorkRecord;
@@ -22,6 +23,8 @@ use Carbon\Carbon;
  */
 class WorkRecordController extends Controller
 {
+    use PreservesListFilters;
+
     /**
      * 作業実績一覧
      */
@@ -523,23 +526,6 @@ class WorkRecordController extends Controller
                 'error' => '作業実績の更新に失敗しました: ' . $e->getMessage()
             ])->withInput();
         }
-    }
-
-    /**
-     * 編集画面から引き継いだ一覧の絞り込み条件（back[...]）を取り出す。
-     * 更新・削除後に同じ絞り込みで一覧へ戻すために使用する。
-     */
-    private function backFilters(Request $request): array
-    {
-        $back = $request->input('back', []);
-        if (!is_array($back)) {
-            return [];
-        }
-
-        return collect($back)
-            ->only(['staff_id', 'drawing_id', 'work_method_id', 'date_from', 'date_to'])
-            ->filter(fn ($value) => $value !== null && $value !== '')
-            ->all();
     }
 
     /**

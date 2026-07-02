@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { buildBackSuffix } from '@/utils/listFilterBack';
 
 const props = defineProps({
     staff: Object,
@@ -11,6 +12,8 @@ const props = defineProps({
 
 // 一覧の検索条件を保持して戻る（編集URLのクエリ文字列を引き継ぐ）
 const backUrl = route('staff.index') + window.location.search;
+// 更新・削除後も一覧の絞り込みを保持するため back[...] で引き継ぐ
+const backSuffix = buildBackSuffix();
 
 const copyMobileLoginUrl = async () => {
     if (!props.mobileLoginUrl) return;
@@ -51,12 +54,12 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.put(route('staff.update', props.staff.id));
+    form.put(route('staff.update', props.staff.id) + backSuffix);
 };
 
 const deleteStaff = () => {
     if (confirm('このスタッフを削除しますか？')) {
-        form.delete(route('staff.destroy', props.staff.id));
+        form.delete(route('staff.destroy', props.staff.id) + backSuffix);
     }
 };
 </script>

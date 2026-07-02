@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PreservesListFilters;
 use App\Http\Requests\StoreDrawingRequest;
 use App\Http\Requests\UpdateDrawingRequest;
 use App\Models\Drawing;
@@ -12,6 +13,8 @@ use Inertia\Inertia;
 
 class DrawingController extends Controller
 {
+    use PreservesListFilters;
+
     public function index(Request $request)
     {
         $today = now()->format('Y-m-d');
@@ -193,11 +196,11 @@ class DrawingController extends Controller
 
         $drawing->update($data);
 
-        return redirect()->route('drawings.index')
+        return redirect()->route('drawings.index', $this->backFilters($request))
             ->with('success', '図番を更新しました。');
     }
 
-    public function destroy(Drawing $drawing)
+    public function destroy(Request $request, Drawing $drawing)
     {
         if ($drawing->workRecords()->exists() || $drawing->workRates()->exists()) {
             return back()->withErrors([
@@ -212,7 +215,7 @@ class DrawingController extends Controller
 
         $drawing->delete();
 
-        return redirect()->route('drawings.index')
+        return redirect()->route('drawings.index', $this->backFilters($request))
             ->with('success', '図番を削除しました。');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PreservesListFilters;
 use App\Http\Requests\StoreWorkMethodRequest;
 use App\Http\Requests\UpdateWorkMethodRequest;
 use App\Models\WorkMethod;
@@ -10,6 +11,8 @@ use Inertia\Inertia;
 
 class WorkMethodController extends Controller
 {
+    use PreservesListFilters;
+
     public function index(Request $request)
     {
         $query = WorkMethod::query()->orderBy('name');
@@ -50,11 +53,11 @@ class WorkMethodController extends Controller
     {
         $workMethod->update($request->validated());
 
-        return redirect()->route('work-methods.index')
+        return redirect()->route('work-methods.index', $this->backFilters($request))
             ->with('success', '作業方法を更新しました。');
     }
 
-    public function destroy(WorkMethod $workMethod)
+    public function destroy(Request $request, WorkMethod $workMethod)
     {
         if ($workMethod->workRecords()->exists() || $workMethod->workRates()->exists()) {
             return back()->withErrors([
@@ -64,7 +67,7 @@ class WorkMethodController extends Controller
 
         $workMethod->delete();
 
-        return redirect()->route('work-methods.index')
+        return redirect()->route('work-methods.index', $this->backFilters($request))
             ->with('success', '作業方法を削除しました。');
     }
 }

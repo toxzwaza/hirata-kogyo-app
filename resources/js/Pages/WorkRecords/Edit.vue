@@ -2,6 +2,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { buildBackSuffix } from '@/utils/listFilterBack';
 
 const props = defineProps({
     workRecord: Object,
@@ -14,21 +15,8 @@ const props = defineProps({
 // 一覧の検索条件を保持して戻る（編集URLのクエリ文字列を引き継ぐ）
 const backUrl = route('work-records.index') + window.location.search;
 
-// 更新・削除後も一覧の絞り込みを保持するため、編集URLのクエリを
-// back[...] として名前空間付きで送る（本文の staff_id 等との衝突を防ぐ）
-const filterKeys = ['staff_id', 'drawing_id', 'work_method_id', 'date_from', 'date_to'];
-const backSuffix = (() => {
-    const current = new URLSearchParams(window.location.search);
-    const params = new URLSearchParams();
-    filterKeys.forEach((key) => {
-        const value = current.get(key);
-        if (value !== null && value !== '') {
-            params.append(`back[${key}]`, value);
-        }
-    });
-    const qs = params.toString();
-    return qs ? `?${qs}` : '';
-})();
+// 更新・削除後も一覧の絞り込みを保持するため back[...] で引き継ぐ
+const backSuffix = buildBackSuffix();
 
 // 得意先リスト（重複なし）
 const clients = computed(() => {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PreservesListFilters;
 use App\Http\Requests\StoreStaffRequest;
 use App\Http\Requests\UpdateStaffRequest;
 use App\Models\Staff;
@@ -12,6 +13,8 @@ use Inertia\Inertia;
 
 class StaffController extends Controller
 {
+    use PreservesListFilters;
+
     public function index(Request $request)
     {
         $query = Staff::with('staffType')->orderBy('name');
@@ -105,11 +108,11 @@ class StaffController extends Controller
 
         $staff->update($data);
 
-        return redirect()->route('staff.index')
+        return redirect()->route('staff.index', $this->backFilters($request))
             ->with('success', 'スタッフを更新しました。');
     }
 
-    public function destroy(Staff $staff)
+    public function destroy(Request $request, Staff $staff)
     {
         if ($staff->workRecords()->exists() || $staff->staffInvoices()->exists()) {
             return back()->withErrors([
@@ -119,7 +122,7 @@ class StaffController extends Controller
 
         $staff->delete();
 
-        return redirect()->route('staff.index')
+        return redirect()->route('staff.index', $this->backFilters($request))
             ->with('success', 'スタッフを削除しました。');
     }
 }

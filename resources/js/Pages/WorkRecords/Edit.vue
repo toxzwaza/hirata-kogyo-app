@@ -14,6 +14,22 @@ const props = defineProps({
 // 一覧の検索条件を保持して戻る（編集URLのクエリ文字列を引き継ぐ）
 const backUrl = route('work-records.index') + window.location.search;
 
+// 更新・削除後も一覧の絞り込みを保持するため、編集URLのクエリを
+// back[...] として名前空間付きで送る（本文の staff_id 等との衝突を防ぐ）
+const filterKeys = ['staff_id', 'drawing_id', 'work_method_id', 'date_from', 'date_to'];
+const backSuffix = (() => {
+    const current = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams();
+    filterKeys.forEach((key) => {
+        const value = current.get(key);
+        if (value !== null && value !== '') {
+            params.append(`back[${key}]`, value);
+        }
+    });
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
+})();
+
 // 得意先リスト（重複なし）
 const clients = computed(() => {
     const clientMap = new Map();
@@ -211,12 +227,12 @@ const submit = () => {
         ...data,
         start_time: startTime,
         end_time: endTime,
-    })).put(route('work-records.update', props.workRecord.id));
+    })).put(route('work-records.update', props.workRecord.id) + backSuffix);
 };
 
 const deleteRecord = () => {
     if (confirm('この作業実績を削除しますか？')) {
-        form.delete(route('work-records.destroy', props.workRecord.id));
+        form.delete(route('work-records.destroy', props.workRecord.id) + backSuffix);
     }
 };
 </script>

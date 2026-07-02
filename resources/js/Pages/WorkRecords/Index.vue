@@ -100,6 +100,36 @@ const clearFilters = () => {
     router.get(route('work-records.index'));
 };
 
+// 請求書に含まれる実績は編集不可。該当する請求書番号（カンマ区切り）を返す。
+// 請求書に未反映なら null を返す（＝編集可能）。
+const invoiceNumbers = (record) => {
+    const details = record.staff_invoice_details || [];
+    if (details.length === 0) return null;
+    const numbers = [...new Set(
+        details
+            .map((d) => d.staff_invoice?.invoice_number)
+            .filter((n) => n !== null && n !== undefined && n !== '')
+    )];
+    return numbers.length > 0 ? numbers.join('、') : null;
+};
+
+// 編集不可ボタン用ツールチップ（overflow に影響されないよう body へ Teleport し fixed 配置）
+const tooltip = ref({ show: false, text: '', x: 0, y: 0 });
+
+const showTooltip = (event, text) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    tooltip.value = {
+        show: true,
+        text,
+        x: rect.right, // ツールチップ右端をボタン右端に合わせる（画面右端でも収まる）
+        y: rect.bottom + 6,
+    };
+};
+
+const hideTooltip = () => {
+    tooltip.value.show = false;
+};
+
 const formatDateTime = (dateTime) => {
     if (!dateTime) return '';
     return new Date(dateTime).toLocaleString('ja-JP');
@@ -280,7 +310,16 @@ const formatNumber = (num) => {
                                     {{ record.work_minutes }}分
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <span
+                                        v-if="invoiceNumbers(record)"
+                                        class="text-gray-400 cursor-not-allowed select-none"
+                                        @mouseenter="showTooltip($event, `この作業実績は請求書に含まれているため編集できません。該当の請求書: ${invoiceNumbers(record)}`)"
+                                        @mouseleave="hideTooltip"
+                                    >
+                                        編集
+                                    </span>
                                     <Link
+                                        v-else
                                         :href="route('work-records.edit', { work_record: record.id, ...filterQuery })"
                                         class="text-blue-600 hover:text-blue-900"
                                     >
@@ -315,6 +354,17 @@ const formatNumber = (num) => {
                 </div>
             </div>
         </div>
+
+        <!-- 編集不可（請求書反映済み）ボタンのツールチップ -->
+        <Teleport to="body">
+            <div
+                v-if="tooltip.show"
+                class="fixed z-50 w-72 whitespace-normal rounded bg-gray-800 px-3 py-2 text-xs leading-relaxed text-white shadow-lg pointer-events-none"
+                :style="{ top: `${tooltip.y}px`, left: `${tooltip.x}px`, transform: 'translateX(-100%)' }"
+            >
+                {{ tooltip.text }}
+            </div>
+        </Teleport>
     </AuthenticatedLayout>
 </template>
 

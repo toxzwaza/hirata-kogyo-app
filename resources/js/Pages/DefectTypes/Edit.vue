@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import { buildBackSuffix } from '@/utils/listFilterBack';
 
 const props = defineProps({
     defectType: Object,
@@ -8,18 +9,20 @@ const props = defineProps({
 
 // 一覧の検索条件を保持して戻る（編集URLのクエリ文字列を引き継ぐ）
 const backUrl = route('defect-types.index') + window.location.search;
+// 更新・削除後も一覧の絞り込みを保持するため back[...] で引き継ぐ
+const backSuffix = buildBackSuffix();
 
 const form = useForm({
     name: props.defectType.name,
 });
 
 const submit = () => {
-    form.put(route('defect-types.update', props.defectType.id));
+    form.put(route('defect-types.update', props.defectType.id) + backSuffix);
 };
 
 const deleteType = () => {
     if (confirm('この不良種類を削除しますか？')) {
-        form.delete(route('defect-types.destroy', props.defectType.id));
+        form.delete(route('defect-types.destroy', props.defectType.id) + backSuffix);
     }
 };
 </script>

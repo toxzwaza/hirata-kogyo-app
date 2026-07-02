@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PreservesListFilters;
 use App\Http\Requests\StoreDefectTypeRequest;
 use App\Http\Requests\UpdateDefectTypeRequest;
 use App\Models\DefectType;
@@ -10,6 +11,8 @@ use Inertia\Inertia;
 
 class DefectTypeController extends Controller
 {
+    use PreservesListFilters;
+
     public function index(Request $request)
     {
         $query = DefectType::query()->orderBy('name');
@@ -50,11 +53,11 @@ class DefectTypeController extends Controller
     {
         $defectType->update($request->validated());
 
-        return redirect()->route('defect-types.index')
+        return redirect()->route('defect-types.index', $this->backFilters($request))
             ->with('success', '不良種類を更新しました。');
     }
 
-    public function destroy(DefectType $defectType)
+    public function destroy(Request $request, DefectType $defectType)
     {
         if ($defectType->workRecordDefects()->exists()) {
             return back()->withErrors([
@@ -64,7 +67,7 @@ class DefectTypeController extends Controller
 
         $defectType->delete();
 
-        return redirect()->route('defect-types.index')
+        return redirect()->route('defect-types.index', $this->backFilters($request))
             ->with('success', '不良種類を削除しました。');
     }
 }

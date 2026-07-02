@@ -2,6 +2,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import { buildBackSuffix } from '@/utils/listFilterBack';
 
 const props = defineProps({
     drawing: Object,
@@ -20,6 +21,8 @@ const formatDate = (date) => {
 
 // 一覧の検索条件を保持して戻る（編集URLのクエリ文字列を引き継ぐ）
 const backUrl = route('drawings.index') + window.location.search;
+// 更新・削除後も一覧の絞り込みを保持するため back[...] で引き継ぐ
+const backSuffix = buildBackSuffix();
 
 const form = useForm({
     client_id: props.drawing.client_id,
@@ -54,14 +57,14 @@ const submit = () => {
         // _methodフィールドを追加してPUTメソッドを指定
         transformed._method = 'PUT';
         return transformed;
-    }).post(route('drawings.update', props.drawing.id), {
+    }).post(route('drawings.update', props.drawing.id) + backSuffix, {
         forceFormData: true,
     });
 };
 
 const deleteDrawing = () => {
     if (confirm('この図番を削除しますか？')) {
-        form.delete(route('drawings.destroy', props.drawing.id));
+        form.delete(route('drawings.destroy', props.drawing.id) + backSuffix);
     }
 };
 </script>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PreservesListFilters;
 use App\Http\Requests\StoreClientRequest;
 use App\Http\Requests\UpdateClientRequest;
 use App\Models\Client;
@@ -13,6 +14,8 @@ use Inertia\Inertia;
  */
 class ClientController extends Controller
 {
+    use PreservesListFilters;
+
     /**
      * 客先一覧
      */
@@ -72,14 +75,14 @@ class ClientController extends Controller
     {
         $client->update($request->validated());
 
-        return redirect()->route('clients.index')
+        return redirect()->route('clients.index', $this->backFilters($request))
             ->with('success', '客先を更新しました。');
     }
 
     /**
      * 客先削除処理
      */
-    public function destroy(Client $client)
+    public function destroy(Request $request, Client $client)
     {
         // 関連する図番が存在する場合は削除不可
         if ($client->drawings()->exists()) {
@@ -90,7 +93,7 @@ class ClientController extends Controller
 
         $client->delete();
 
-        return redirect()->route('clients.index')
+        return redirect()->route('clients.index', $this->backFilters($request))
             ->with('success', '客先を削除しました。');
     }
 }

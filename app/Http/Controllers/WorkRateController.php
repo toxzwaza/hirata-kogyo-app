@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PreservesListFilters;
 use App\Http\Requests\StoreWorkRateRequest;
 use App\Http\Requests\UpdateWorkRateRequest;
 use App\Models\WorkRate;
@@ -14,6 +15,8 @@ use Inertia\Inertia;
 
 class WorkRateController extends Controller
 {
+    use PreservesListFilters;
+
     public function index(Request $request)
     {
         $query = WorkRate::with(['drawing.client', 'workMethod'])
@@ -118,15 +121,15 @@ class WorkRateController extends Controller
     {
         $workRate->update($request->validated());
 
-        return redirect()->route('work-rates.index')
+        return redirect()->route('work-rates.index', $this->backFilters($request))
             ->with('success', '作業単価を更新しました。');
     }
 
-    public function destroy(WorkRate $workRate)
+    public function destroy(Request $request, WorkRate $workRate)
     {
         $workRate->delete();
 
-        return redirect()->route('work-rates.index')
+        return redirect()->route('work-rates.index', $this->backFilters($request))
             ->with('success', '作業単価を削除しました。');
     }
 

@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import { buildBackSuffix } from '@/utils/listFilterBack';
 
 const props = defineProps({
     workRate: Object,
@@ -10,6 +11,8 @@ const props = defineProps({
 
 // 一覧の検索条件を保持して戻る（編集URLのクエリ文字列を引き継ぐ）
 const backUrl = route('work-rates.index') + window.location.search;
+// 更新・削除後も一覧の絞り込みを保持するため back[...] で引き継ぐ
+const backSuffix = buildBackSuffix();
 
 // type="date" 用に YYYY-MM-DD 形式に正規化（登録済みの日付をデフォルト表示するため）
 const toDateInputValue = (val) => {
@@ -32,12 +35,12 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.put(route('work-rates.update', props.workRate.id));
+    form.put(route('work-rates.update', props.workRate.id) + backSuffix);
 };
 
 const deleteRate = () => {
     if (confirm('この作業単価を削除しますか？')) {
-        form.delete(route('work-rates.destroy', props.workRate.id));
+        form.delete(route('work-rates.destroy', props.workRate.id) + backSuffix);
     }
 };
 </script>

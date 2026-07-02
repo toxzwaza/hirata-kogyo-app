@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import { buildBackSuffix } from '@/utils/listFilterBack';
 
 const props = defineProps({
     client: Object,
@@ -8,6 +9,8 @@ const props = defineProps({
 
 // 一覧の検索条件を保持して戻る（編集URLのクエリ文字列を引き継ぐ）
 const backUrl = route('clients.index') + window.location.search;
+// 更新・削除後も一覧の絞り込みを保持するため back[...] で引き継ぐ
+const backSuffix = buildBackSuffix();
 
 const form = useForm({
     name: props.client.name,
@@ -15,12 +18,12 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.put(route('clients.update', props.client.id));
+    form.put(route('clients.update', props.client.id) + backSuffix);
 };
 
 const deleteClient = () => {
     if (confirm('この客先を削除しますか？')) {
-        form.delete(route('clients.destroy', props.client.id));
+        form.delete(route('clients.destroy', props.client.id) + backSuffix);
     }
 };
 </script>

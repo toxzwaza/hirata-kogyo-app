@@ -261,11 +261,11 @@ const formatNumber = (num) => {
                                     <span class="text-xs text-gray-500">{{ record.staff.staff_type.name }}</span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ record.drawing.drawing_number }}<br>
-                                    <span class="text-xs text-gray-500">{{ record.drawing.client.name }}</span>
+                                    {{ record.drawing?.drawing_number || record.manual_drawing_number || '—' }}<br>
+                                    <span class="text-xs text-gray-500">{{ record.drawing?.client?.name || record.manual_client_name || '—' }}</span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ record.drawing.product_name }}
+                                    {{ record.drawing?.product_name || record.manual_product_name || '—' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {{ record.work_method.name }}
